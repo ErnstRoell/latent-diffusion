@@ -84,9 +84,10 @@ def train(args):
         for step, (im,) in enumerate(tqdm(train_loader)):
             # Accumulate gradient 8 batches at a time
             is_accumulating = step % 8 != 0
-            im = im[:, :1, :, :]
+            # im = im[:, :1, :, :]
 
             with fabric.no_backward_sync(model, enabled=is_accumulating):
+
                 # Sample random noise
                 noise = torch.randn_like(im)
 

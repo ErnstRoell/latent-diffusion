@@ -15,7 +15,7 @@ scheduler:
 
 model:
   module: ""
-  im_channels: 1
+  im_channels: 3
   down_channels: [32,128,128]
   mid_channels: [128,128]
   down_sample: [True,True]
