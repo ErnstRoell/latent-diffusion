@@ -9,10 +9,8 @@ from lightning.fabric import Fabric
 from loaders import load_config, load_datamodule
 
 from models.linear_scheduler import LinearNoiseScheduler
-from torchvision.utils import make_grid
 from models.unet import Unet
 
-# from models.vqvae import VQVAE
 from torch.optim import Adam
 from tqdm import tqdm
 
@@ -23,14 +21,26 @@ torch.set_float32_matmul_precision("medium")
 
 def train(args):
     # Set up Fabric
-    fabric = Fabric(accelerator="cuda")  # , precision="16-mixed")
+    fabric = Fabric(
+        accelerator="cuda",
+        precision="16-mixed",
+    )
+
+    ###################
+    #  Parse configs  #
+    ###################
 
     # Parse the args
     config_path = args.config_path
     dev: bool = args.dev
     compile: bool = args.compile
+    resume: bool = args.resume
 
     config = load_config(config_path)
+
+    #################################
+    #  Set up directory structures  #
+    #################################
 
     # Create paths for the results
     result_folder_list = ["results"] + list(pathlib.Path(config_path).parent.parts[1:])
@@ -47,14 +57,22 @@ def train(args):
 
     # Dataloaders
     dm = load_datamodule(config.dataset)
-    _, train_loader = dm.get_dataloaders(config.dataset, dev=dev)
+    train_loader, _ = dm.get_dataloaders(config.dataset, dev=dev)
     train_loader = fabric.setup_dataloaders(train_loader)
 
     # Instantiate the model
     model = Unet(config.model)
 
+    # If resume training, load the model.
+    if resume:
+        state = {"model": model}
+        fabric.load(result_folder / "model.ckpt", state)
+        model.train()
+        model.to(fabric.device)
+
     if compile:
         model = torch.compile(model)
+
     optimizer = Adam(model.parameters(), lr=config.trainer.lr)
     criterion = torch.nn.MSELoss()
 
@@ -63,62 +81,43 @@ def train(args):
     model.train()
     for epoch_idx in range(config.trainer.num_epochs):
         losses = []
-        for (im,) in tqdm(train_loader):
-
+        for step, (im,) in enumerate(tqdm(train_loader)):
+            # Accumulate gradient 8 batches at a time
+            is_accumulating = step % 8 != 0
             im = im[:, :1, :, :]
 
-            optimizer.zero_grad()
+            with fabric.no_backward_sync(model, enabled=is_accumulating):
+                # Sample random noise
+                noise = torch.randn_like(im)
 
-            # Sample random noise
-            noise = torch.randn_like(im)
+                # Sample timestep
+                t = torch.randint(
+                    0,
+                    config.scheduler.num_timesteps,
+                    (im.shape[0],),
+                    device=fabric.device,
+                )
 
-            # Sample timestep
-            t = torch.randint(
-                0,
-                config.scheduler.num_timesteps,
-                (im.shape[0],),
-                device=fabric.device,
-            )
+                # Add noise to images according to timestep
+                noisy_im = scheduler.add_noise(im, noise, t)
 
-            # Add noise to images according to timestep
-            noisy_im = scheduler.add_noise(im, noise, t)
+                noise_pred = model(noisy_im, t)
 
-            noise_pred = model(noisy_im, t)
+                loss = criterion(noise_pred, noise)
+                fabric.backward(loss)
+                losses.append(loss.item())
 
-            loss = criterion(noise_pred, noise)
-            losses.append(loss.item())
-            fabric.backward(loss)
-            optimizer.step()
+            if not is_accumulating:
+                optimizer.step()
+                optimizer.zero_grad()
+
         print(
             "Finished epoch:{} | Loss : {:.4f}".format(epoch_idx + 1, np.mean(losses))
         )
 
     state = {"model": model}
     fabric.save(result_folder / "model.ckpt", state)
-
     print("Done Training ...")
-
-    # model.eval()
-    # with torch.no_grad():
-    #     for batch in range(1):
-    #         xt = torch.randn((9, 1, 28, 28)).to(device)
-    #         for i in tqdm(reversed(range(config.scheduler.num_timesteps))):
-    #             # Get prediction of noise
-    #             noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
-    #
-    #             # Use scheduler to get x0 and xt-1
-    #             xt, _ = scheduler.sample_prev_timestep(
-    #                 xt, noise_pred, torch.as_tensor(i).to(device)
-    #             )
-    #             #
-    #             # Save x0
-    #             if i == 0:
-    #                 ims = torch.clamp(xt, -1.0, 1.0).detach().cpu()
-    #                 ims = (1 + torch.clamp(ims, -1.0, 1.0).detach().cpu()) / 2
-    #                 grid = make_grid(ims, nrow=2)
-    #                 img = torchvision.transforms.ToPILImage()(grid[:3, :, :])
-    #                 img.save(result_folder / f"generated_{i}.png")
-    #                 img.close()
 
 
 def main():
@@ -137,6 +136,12 @@ def main():
     )
     _ = parser.add_argument(
         "--compile",
+        default=False,
+        action="store_true",
+        help="Compile modules",
+    )
+    _ = parser.add_argument(
+        "--resume",
         default=False,
         action="store_true",
         help="Compile modules",

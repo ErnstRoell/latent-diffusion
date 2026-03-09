@@ -39,7 +39,7 @@ def main(args):
     model.to(fabric.device)
 
     for batch in range(1):
-        xt = torch.randn((64, 1, 28, 28)).to(device)
+        xt = torch.randn((64, 1, 64, 64)).to(device)
         for i in tqdm(reversed(range(config.scheduler.num_timesteps))):
             # Get prediction of noise
             noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))

@@ -138,13 +138,13 @@ class UpBlock(nn.Module):
             out = self.resnet_conv_second[i](out)
             out = out + self.residual_input_conv[i](resnet_input)
             # Self Attention
-            batch_size, channels, h, w = out.shape
-            in_attn = out.reshape(batch_size, channels, h * w)
-            in_attn = self.attention_norms[i](in_attn)
-            in_attn = in_attn.transpose(1, 2)
-            out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
-            out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
-            out = out + out_attn
+            # batch_size, channels, h, w = out.shape
+            # in_attn = out.reshape(batch_size, channels, h * w)
+            # in_attn = self.attention_norms[i](in_attn)
+            # in_attn = in_attn.transpose(1, 2)
+            # out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
+            # out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
+            # out = out + out_attn
             # Cross Attention
             if self.cross_attn:
                 assert (

@@ -7,7 +7,6 @@ from torch_geometric.loader import DataLoader
 from datasets.transforms import (
     EctChannelsTransform,
     EctTransformConfig,
-    To3DNormalizedCoords,
 )
 
 
@@ -482,16 +481,17 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         shuffle=True,
         num_workers=0,
         # persistent_workers=True,
-        drop_last=True if not dev else False,
+        pin_memory=True,
+        drop_last=True,
     )
 
     test_dl = DataLoader(
         test_ds,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=4,
+        num_workers=0,
         pin_memory=True,
-        persistent_workers=True,
+        # persistent_workers=True,
         drop_last=False,
     )
     return train_dl, test_dl
@@ -501,8 +501,8 @@ if __name__ == "__main__":
     config = DataConfig(
         root="./data",
         raw="./data/raw",
-        batch_size=64,
-        resolution=28,
+        batch_size=4,
+        resolution=64,
         use_diracs=False,
     )
     create_dataset(config, dev=True, force_reload=False)
