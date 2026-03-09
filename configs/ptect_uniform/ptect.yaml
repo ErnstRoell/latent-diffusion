@@ -1,6 +1,7 @@
 dataset: 
-  module: datasets.mnist
+  module: datasets.ptect
   root: data
+  structured_directions: False
   raw: data/raw
   batch_size: 16 
 
@@ -27,6 +28,5 @@ model:
   num_up_layers: 2
 
 trainer:
-  num_epochs: 10
+  num_epochs: 50
   lr: 0.0005
-
