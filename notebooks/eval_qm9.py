@@ -34,6 +34,9 @@ img = torchvision.transforms.ToPILImage()(grid[:, :, :])
 plt.imshow(img)
 plt.show()
 
+print(diffs.min())
+print(diffs.max())
+
 
 imgs = []
 for idx, rec in enumerate(diffs.squeeze()):
@@ -49,8 +52,6 @@ grid = make_grid(recons, nrow=8)
 img = torchvision.transforms.ToPILImage()(grid[:, :, :])
 #
 plt.imshow(img)
-
-
 
 
 # |%%--%%| <YcPac3Eaka|lyt9mIzG9q>

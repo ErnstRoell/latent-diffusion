@@ -15,7 +15,7 @@ scheduler:
 
 model:
   module: ""
-  im_channels: 3
+  im_channels: 1
   down_channels: [32,128,128]
   mid_channels: [128,128]
   down_sample: [True,True]
@@ -29,5 +29,5 @@ model:
   num_mid_layers: 2
   num_up_layers: 2
 trainer:
-  num_epochs: 150
+  num_epochs: 1500
   lr: 0.0001
