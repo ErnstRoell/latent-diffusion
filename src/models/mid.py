@@ -1,6 +1,10 @@
 import torch.nn as nn
 from typing import Union
 
+import structlog
+
+logger = structlog.get_logger()
+
 
 def get_normlayer(
     norm_channels,
@@ -11,6 +15,13 @@ def get_normlayer(
         return nn.GroupNorm(norm_channels, in_channels)
     else:
         return nn.BatchNorm2d(in_channels)
+
+
+def forward_hook(module, input, output):
+    logger.info(f"Inside forward hook for {module.__class__.__name__}")
+    logger.info(f"Input shape: {input[0].shape}")
+    logger.info(f"Output shape: {output.shape}")
+    logger.info("--------")
 
 
 class MidBlock(nn.Module):
@@ -120,12 +131,18 @@ class MidBlock(nn.Module):
                 for i in range(num_layers + 1)
             ]
         )
+        self.register_forward_hook(forward_hook)
+        # self.hooks = {}
+        # for name, module in self.named_modules():
+        #     self.hooks[name] = module.register_forward_hook(forward_hook)
 
     def forward(self, x, t_emb=None, context=None):
         out = x
+        logger.info("Entering Mid")
 
         # First resnet block
         resnet_input = out
+        logger.info({"shape": out.shape})
         out = self.resnet_conv_first[0](out)
         if self.t_emb_dim is not None:
             out = out + self.t_emb_layers[0](t_emb)[:, :, None, None]

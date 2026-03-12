@@ -1,5 +1,24 @@
 import torch.nn as nn
+
 from typing import Union
+from dataclasses import dataclass, asdict
+
+import structlog
+
+logger = structlog.get_logger()
+
+
+@dataclass
+class DownConfig:
+    in_channels: int = 64
+    out_channels: int = 128
+    t_emb_dim: int = 128
+    down_sample: bool = True
+    num_heads: int = 16
+    num_layers: int = 2
+    attn: bool = True
+    norm_channels: int = 32
+    normtype: str = "group"
 
 
 def get_normlayer(
@@ -11,6 +30,13 @@ def get_normlayer(
         return nn.GroupNorm(norm_channels, in_channels)
     else:
         return nn.BatchNorm2d(in_channels)
+
+
+def forward_hook(module, input, output):
+    logger.info(f"Inside forward hook for {module.__class__.__name__}")
+    logger.info(f"Input shape: {input[0].shape}")
+    logger.info(f"Output shape: {output.shape}")
+    logger.info("--------")
 
 
 class DownBlock(nn.Module):
@@ -32,16 +58,27 @@ class DownBlock(nn.Module):
         num_layers,
         attn,
         norm_channels,
-        cross_attn=False,
-        context_dim=None,
         normtype="group",
     ):
         super().__init__()
+
+        self.config = DownConfig(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            t_emb_dim=t_emb_dim,
+            down_sample=down_sample,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            attn=attn,
+            norm_channels=norm_channels,
+            normtype=normtype,
+        )
+
+        logger.info(asdict(self.config))
+
         self.num_layers = num_layers
         self.down_sample = down_sample
         self.attn = attn
-        self.context_dim = context_dim
-        self.cross_attn = cross_attn
         self.t_emb_dim = t_emb_dim
         self.resnet_conv_first = nn.ModuleList(
             [
@@ -98,26 +135,6 @@ class DownBlock(nn.Module):
                 ]
             )
 
-        if self.cross_attn:
-            assert (
-                context_dim is not None
-            ), "Context Dimension must be passed for cross attention"
-            self.cross_attention_norms = nn.ModuleList(
-                [
-                    get_normlayer(norm_channels, out_channels, normtype=normtype)
-                    for _ in range(num_layers)
-                ]
-            )
-            self.cross_attentions = nn.ModuleList(
-                [
-                    nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
-                    for _ in range(num_layers)
-                ]
-            )
-            self.context_proj = nn.ModuleList(
-                [nn.Linear(context_dim, out_channels) for _ in range(num_layers)]
-            )
-
         self.residual_input_conv = nn.ModuleList(
             [
                 nn.Conv2d(
@@ -126,13 +143,15 @@ class DownBlock(nn.Module):
                 for i in range(num_layers)
             ]
         )
-        self.down_sample_conv = (
-            nn.Conv2d(out_channels, out_channels, 4, 2, 1)
-            if self.down_sample
-            else nn.Identity()
-        )
 
-    def forward(self, x, t_emb=None, context=None):
+        if self.down_sample:
+            self.down_sample_conv = nn.Conv2d(out_channels, out_channels, 4, 2, 1)
+        else:
+            self.down_sample_conv = nn.Identity()
+
+        self.register_forward_hook(forward_hook)
+
+    def forward(self, x, t_emb=None):
         out = x
         for i in range(self.num_layers):
             # Resnet block of Unet
@@ -153,32 +172,15 @@ class DownBlock(nn.Module):
                 out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
                 out = out + out_attn
 
-            if self.cross_attn:
-                assert (
-                    context is not None
-                ), "context cannot be None if cross attention layers are used"
-                batch_size, channels, h, w = out.shape
-                in_attn = out.reshape(batch_size, channels, h * w)
-                in_attn = self.cross_attention_norms[i](in_attn)
-                in_attn = in_attn.transpose(1, 2)
-                assert (
-                    context.shape[0] == x.shape[0]
-                    and context.shape[-1] == self.context_dim
-                )
-                context_proj = self.context_proj[i](context)
-                out_attn, _ = self.cross_attentions[i](
-                    in_attn, context_proj, context_proj
-                )
-                out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
-                out = out + out_attn
-
         # Downsample
         out = self.down_sample_conv(out)
         return out
 
 
 if __name__ == "__main__":
-    block = DownBlock(
+    import torch
+
+    block_1 = DownBlock(
         in_channels=64,
         out_channels=128,
         t_emb_dim=128,
@@ -187,10 +189,24 @@ if __name__ == "__main__":
         num_layers=2,
         attn=True,
         norm_channels=32,
-        context_dim=None,
+        normtype="group",
+    )
+    block_2 = DownBlock(
+        in_channels=64,
+        out_channels=128,
+        t_emb_dim=128,
+        down_sample=True,
+        num_heads=8,
+        num_layers=7,
+        attn=True,
+        norm_channels=64,
         normtype="group",
     )
 
-    from torchinfo import summary
+    img = torch.zeros(10, 64, 28, 28)
+    t_emb = torch.ones(10, 128)
+    block_1(img, t_emb)
+    block_2(img, t_emb)
 
-    print(summary(block))
+    # from torchinfo import summary
+    # print(summary(block))

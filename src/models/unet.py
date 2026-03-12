@@ -6,6 +6,9 @@ from models.down import DownBlock
 from models.mid import MidBlock
 from models.up import UpBlock
 from torch import nn
+import structlog
+
+logger = structlog.get_logger()
 
 
 def get_time_embedding(time_steps, temb_dim):
@@ -190,8 +193,8 @@ if __name__ == "__main__":
     config = ModelConfig(
         module="",
         im_channels=1,
-        down_channels=[64, 128, 128],
-        mid_channels=[128, 128],
+        down_channels=[64, 128, 256],
+        mid_channels=[256, 256],
         down_sample=[False, True],
         attn_down=[False, True],
         attn_up=[False, False],

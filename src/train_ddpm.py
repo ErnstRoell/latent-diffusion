@@ -7,6 +7,9 @@ import torch
 from lightning.fabric import Fabric
 from lightning.fabric.loggers.csv_logs import CSVLogger  # noqa: F401
 
+from structlog import get_logger
+
+
 from loaders import load_config, load_datamodule
 
 from models.linear_scheduler import LinearNoiseScheduler
@@ -16,6 +19,7 @@ from torch.optim import Adam
 from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = get_logger()
 
 torch.set_float32_matmul_precision("medium")
 
