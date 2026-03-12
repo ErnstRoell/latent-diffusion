@@ -24,7 +24,7 @@ def train(args):
     # Set up Fabric
     fabric = Fabric(
         accelerator="cuda",
-        precision="16-mixed",
+        # precision="16-mixed",
     )
 
     ###################
