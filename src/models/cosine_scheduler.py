@@ -4,14 +4,13 @@ import torch
 
 
 @dataclass
-class NoiseSchedulerConfig:
+class SchedulerConfig:
     num_timesteps: int
-    beta_start: float
-    beta_end: float
     zero_snr: bool
+    cosine_s: float
 
 
-def make_cosine_schedule(n_timestep, cosine_s=8e-3):
+def make_cosine_schedule(n_timestep, cosine_s):
     timesteps = torch.arange(n_timestep + 1) / n_timestep + cosine_s
     alphas = timesteps / (1 + cosine_s) * torch.pi / 2
     alphas = torch.cos(alphas).pow(2)
@@ -19,10 +18,6 @@ def make_cosine_schedule(n_timestep, cosine_s=8e-3):
     betas = 1 - alphas[1:] / alphas[:-1]
     betas = betas.clamp(max=0.999)
     return betas
-
-
-def make_linear_schedule(num_timesteps, linear_start=1e-4, linear_end=2e-2):
-    return torch.linspace(linear_start, linear_end, num_timesteps)
 
 
 def enforce_zero_terminal_snr(betas):
@@ -55,36 +50,21 @@ def enforce_zero_terminal_snr(betas):
     return betas
 
 
-class LinearNoiseScheduler(torch.nn.Module):
-    def __init__(self, config: NoiseSchedulerConfig):
+class CosineNoiseScheduler(torch.nn.Module):
+    def __init__(self, config: SchedulerConfig):
         super().__init__()
         self.config = config
-        betas = (
-            torch.linspace(
-                config.beta_start**0.5,
-                config.beta_end**0.5,
-                config.num_timesteps,
-            )
-            ** 2
-        )
-        if config.zero_snr:
-            self.betas = enforce_zero_terminal_snr(betas)
-        else:
-            self.betas = betas
+        self.betas = make_cosine_schedule(config.num_timesteps, config.cosine_s)
 
-        alphas = 1.0 - self.betas
-        alpha_cum_prod = torch.cumprod(alphas, dim=0)
-        sqrt_alpha_cum_prod = torch.sqrt(alpha_cum_prod).reshape(-1, 1, 1, 1)
-        sqrt_one_minus_alpha_cum_prod = torch.sqrt(1 - alpha_cum_prod).reshape(
-            -1, 1, 1, 1
-        )
-        self.register_buffer("alphas", alphas)
-        self.register_buffer("alpha_cum_prod", alpha_cum_prod)
-        self.register_buffer("sqrt_alpha_cum_prod", sqrt_alpha_cum_prod)
-        self.register_buffer(
-            "sqrt_one_minus_alpha_cum_prod",
-            sqrt_one_minus_alpha_cum_prod,
-        )
+        if config.zero_snr:
+            self.betas = enforce_zero_terminal_snr(self.betas)
+
+        self.alphas = 1.0 - self.betas
+        self.alpha_cum_prod = torch.cumprod(self.alphas, dim=0)
+        self.sqrt_alpha_cum_prod = torch.sqrt(self.alpha_cum_prod).reshape(-1, 1, 1, 1)
+        self.sqrt_one_minus_alpha_cum_prod = torch.sqrt(
+            1 - self.alpha_cum_prod
+        ).reshape(-1, 1, 1, 1)
 
     def add_noise(self, im, noise, t):
         # Assumes im is of shape B,C,H,W
@@ -96,11 +76,13 @@ class LinearNoiseScheduler(torch.nn.Module):
     def sample_timestep(self, im):
         # Sample timestep
         return torch.randint(
-            0, self.config.num_timesteps, (im.shape[0],), device=im.device
+            0,
+            self.config.num_timesteps,
+            (im.shape[0],),
         )
 
     def sample_noise(self, im):
-        return torch.randn_like(im, device=im.device)
+        return torch.randn_like(im)
 
     def sample_prev_timestep(self, xt, noise_pred, t):
         x0 = (xt - (self.sqrt_one_minus_alpha_cum_prod[t] * noise_pred)) / torch.sqrt(
@@ -119,5 +101,5 @@ class LinearNoiseScheduler(torch.nn.Module):
             variance = (1 - self.alpha_cum_prod[t - 1]) / (1.0 - self.alpha_cum_prod[t])
             variance = variance * self.betas[t]
             sigma = variance**0.5
-            z = torch.randn(xt.shape, device=xt.device)
+            z = torch.randn(xt.shape)
             return mean + sigma * z, x0

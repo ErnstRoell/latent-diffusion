@@ -49,8 +49,8 @@ def create_dataset(config: DataConfig, dev: bool = False):
     mnist_test = MNIST(root=raw_path, transform=transform, train=False, download=True)
 
     if dev:
-        mnist_train = torch.utils.data.Subset(mnist_train, torch.arange(0, 128))  # type: ignore
-        mnist_test = torch.utils.data.Subset(mnist_test, torch.arange(0, 128))  # type: ignore
+        mnist_train = torch.utils.data.Subset(mnist_train, torch.arange(0, 2048))  # type: ignore
+        mnist_test = torch.utils.data.Subset(mnist_test, torch.arange(0, 2048))  # type: ignore
 
     # Convert to list.
     train_ims = []
@@ -94,9 +94,9 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
     test_ims = torch.load(f"{path}/test_ims.pt")
     test_ys = torch.load(f"{path}/test_ys.pt")
 
-    train_ds = torch.utils.data.TensorDataset(train_ims, train_ys)
+    train_ds = torch.utils.data.TensorDataset(train_ims)
 
-    test_ds = torch.utils.data.TensorDataset(test_ims, test_ys)
+    test_ds = torch.utils.data.TensorDataset(test_ims)
     train_dl = torch.utils.data.DataLoader(
         train_ds,
         batch_size=config.batch_size,
