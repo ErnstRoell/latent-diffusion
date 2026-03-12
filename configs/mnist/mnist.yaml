@@ -28,11 +28,10 @@ model:
   num_up_layers: 2
 
 trainer:
-  num_epochs: 5
+  num_epochs: 150
   lr: 0.0005
-  checkpoint_interval: 2
-  validation_interval: 1000
-  flush_logs_every_n_steps: 1
+  checkpoint_interval: 20
+  validation_interval: 10
 
 meta:
   modelname: unet

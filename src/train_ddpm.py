@@ -50,13 +50,6 @@ def train(args):
     if not result_folder.exists():
         os.makedirs(result_folder, exist_ok=True)
 
-    logger = CSVLogger(
-        f"{result_folder}/logs",
-        name=config.meta.modelname,
-        version="trainlogs",
-        flush_logs_every_n_steps=10,
-    )
-
     # Create the noise scheduler
     scheduler = LinearNoiseScheduler(config=config.scheduler)
     if compile:
@@ -71,13 +64,22 @@ def train(args):
 
     # Instantiate the model
     model = Unet(config.model)
+    epoch = 0
 
     # If resume training, load the model.
     if resume:
-        state = {"model": model}
+        state = {"model": model, "epoch": epoch}
         fabric.load(result_folder / f"{config.meta.modelname}_9999.ckpt", state)
+        epoch = state["epoch"]
         model.train()
         model.to(fabric.device)
+
+    logger = CSVLogger(
+        f"{result_folder}/logs",
+        name=config.meta.modelname,
+        version=f"trainlogs_{epoch:04d}",
+        flush_logs_every_n_steps=config.trainer.flush_logs_every_n_steps,
+    )
 
     if compile:
         model = torch.compile(model)
@@ -88,7 +90,8 @@ def train(args):
     model, optimizer = fabric.setup(model, optimizer)  # type: ignore
 
     model.train()
-    for epoch_idx in range(config.trainer.num_epochs):
+    print(f"Start training from epoch {epoch} ...")
+    for epoch_idx in range(epoch, epoch + config.trainer.num_epochs):
         losses = []
         for step, (im,) in enumerate(tqdm(train_loader)):
             # Accumulate gradient 8 batches at a time
@@ -115,9 +118,7 @@ def train(args):
                 optimizer.zero_grad()
 
         logger.log_metrics({"train_loss": np.mean(losses)}, step=epoch_idx)  # type: ignore
-        print(
-            "Finished epoch:{} | Loss : {:.4f}".format(epoch_idx + 1, np.mean(losses))
-        )
+        print("Finished epoch:{} | Loss : {:.4f}".format(epoch_idx, np.mean(losses)))
 
         if epoch_idx % config.trainer.validation_interval == 0:
             val_losses = []
@@ -134,18 +135,19 @@ def train(args):
                 logger.log_metrics({"val_loss": np.mean(val_losses)}, step=epoch_idx)  # type: ignore
                 print(
                     "Validation epoch:{} | Loss : {:.4f}".format(
-                        epoch_idx + 1, np.mean(val_losses)
+                        epoch_idx, np.mean(val_losses)
                     )
                 )
 
         if epoch_idx % config.trainer.checkpoint_interval == 0:
-            state = {"model": model}
+            state = {"model": model, "epoch": epoch_idx + 1}
             fabric.save(
                 result_folder / f"{config.meta.modelname}_{epoch_idx:04}.ckpt", state
             )
 
     print("Done Training ...")
-    state = {"model": model}
+    state = {"model": model, "epoch": epoch_idx + 1}
+    print(f"Epoch: {epoch_idx}")
     fabric.save(result_folder / f"{config.meta.modelname}_9999.ckpt", state)
 
 
