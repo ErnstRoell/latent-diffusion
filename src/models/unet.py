@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
-from models.down import DownBlock
+from models.down import DownBlock, DownConfig
 from models.mid import MidBlock
 from models.up import UpBlock
 from torch import nn
@@ -92,18 +92,18 @@ class Unet(nn.Module):
 
         self.downs = nn.ModuleList([])
         for i in range(len(self.config.down_channels) - 1):  # type: ignore
-            self.downs.append(
-                DownBlock(
-                    self.config.down_channels[i],  # type: ignore
-                    self.config.down_channels[i + 1],  # type: ignore
-                    self.config.time_emb_dim,
-                    down_sample=self.config.down_sample[i],  # type: ignore
-                    num_heads=self.config.num_heads,
-                    num_layers=self.config.num_down_layers,
-                    attn=self.config.attn_down[i],  # type: ignore
-                    norm_channels=self.config.norm_channels,
-                )
+            downconfig = DownConfig(
+                in_channels=self.config.down_channels[i],
+                out_channels=self.config.down_channels[i + 1],
+                t_emb_dim=self.config.time_emb_dim,
+                down_sample=self.config.down_sample[i],
+                num_heads=self.config.num_heads,
+                num_layers=self.config.num_down_layers,
+                attn=self.config.attn_down[i],
+                norm_channels=self.config.norm_channels,
+                normtype="group",
             )
+            self.downs.append(DownBlock(downconfig))
 
         #####################
         #  Mid blocks UNet  #

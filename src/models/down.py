@@ -50,31 +50,9 @@ class DownBlock(nn.Module):
     3. Downsample
     """
 
-    def __init__(
-        self,
-        in_channels,
-        out_channels,
-        t_emb_dim,
-        down_sample,
-        num_heads,
-        num_layers,
-        attn,
-        norm_channels,
-        normtype="group",
-    ):
+    def __init__(self, config):
         super().__init__()
 
-        config = DownConfig(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            t_emb_dim=t_emb_dim,
-            down_sample=down_sample,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            attn=attn,
-            norm_channels=norm_channels,
-            normtype=normtype,
-        )
         self.config = config
 
         logger.info("Config:", **asdict(self.config))
@@ -87,8 +65,8 @@ class DownBlock(nn.Module):
             [
                 nn.Sequential(
                     get_normlayer(
-                        norm_channels,
-                        in_channels if i == 0 else config.out_channels,
+                        config.norm_channels,
+                        config.in_channels if i == 0 else config.out_channels,
                         normtype=config.normtype,
                     ),
                     nn.SiLU(),
