@@ -131,7 +131,7 @@ class MidBlock(nn.Module):
                 for i in range(num_layers + 1)
             ]
         )
-        self.register_forward_hook(forward_hook)
+        # self.register_forward_hook(forward_hook)
         # self.hooks = {}
         # for name, module in self.named_modules():
         #     self.hooks[name] = module.register_forward_hook(forward_hook)

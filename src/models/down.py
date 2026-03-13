@@ -33,10 +33,12 @@ def get_normlayer(
 
 
 def forward_hook(module, input, output):
-    logger.info(f"Inside forward hook for {module.__class__.__name__}")
-    logger.info(f"Input shape: {input[0].shape}")
-    logger.info(f"Output shape: {output.shape}")
-    logger.info("--------")
+    log = logger.bind(module=module.__class__.__name__)
+    if isinstance(output, torch.Tensor):
+        outs = output.shape
+    elif isinstance(output, tuple):
+        outs = [el.shape for el in output]
+    log.info("Shape", in_shape=input[0].shape, out_shape=outs)
 
 
 class DownBlock(nn.Module):
@@ -62,7 +64,7 @@ class DownBlock(nn.Module):
     ):
         super().__init__()
 
-        self.config = DownConfig(
+        config = DownConfig(
             in_channels=in_channels,
             out_channels=out_channels,
             t_emb_dim=t_emb_dim,
@@ -73,96 +75,116 @@ class DownBlock(nn.Module):
             norm_channels=norm_channels,
             normtype=normtype,
         )
+        self.config = config
 
-        logger.info(asdict(self.config))
+        logger.info("Config:", **asdict(self.config))
 
-        self.num_layers = num_layers
-        self.down_sample = down_sample
-        self.attn = attn
-        self.t_emb_dim = t_emb_dim
+        self.config.num_layers = config.num_layers
+        self.config.down_sample = config.down_sample
+        self.config.attn = config.attn
+        self.config.t_emb_dim = config.t_emb_dim
         self.resnet_conv_first = nn.ModuleList(
             [
                 nn.Sequential(
                     get_normlayer(
                         norm_channels,
-                        in_channels if i == 0 else out_channels,
-                        normtype=normtype,
+                        in_channels if i == 0 else config.out_channels,
+                        normtype=config.normtype,
                     ),
                     nn.SiLU(),
                     nn.Conv2d(
-                        in_channels if i == 0 else out_channels,
-                        out_channels,
+                        config.in_channels if i == 0 else config.out_channels,
+                        config.out_channels,
                         kernel_size=3,
                         stride=1,
                         padding=1,
                     ),
                 )
-                for i in range(num_layers)
+                for i in range(config.num_layers)
             ]
         )
-        if self.t_emb_dim is not None:
+        if self.config.t_emb_dim is not None:
             self.t_emb_layers = nn.ModuleList(
                 [
-                    nn.Sequential(nn.SiLU(), nn.Linear(self.t_emb_dim, out_channels))
-                    for _ in range(num_layers)
+                    nn.Sequential(
+                        nn.SiLU(), nn.Linear(self.config.t_emb_dim, config.out_channels)
+                    )
+                    for _ in range(config.num_layers)
                 ]
             )
         self.resnet_conv_second = nn.ModuleList(
             [
                 nn.Sequential(
-                    get_normlayer(norm_channels, out_channels, normtype=normtype),
+                    get_normlayer(
+                        norm_channels,
+                        out_channels,
+                        normtype=config.normtype,
+                    ),
                     nn.SiLU(),
                     nn.Conv2d(
-                        out_channels, out_channels, kernel_size=3, stride=1, padding=1
+                        config.out_channels,
+                        config.out_channels,
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
                     ),
                 )
-                for _ in range(num_layers)
+                for _ in range(config.num_layers)
             ]
         )
 
-        if self.attn:
+        if self.config.attn:
             self.attention_norms = nn.ModuleList(
                 [
                     get_normlayer(norm_channels, out_channels, normtype="group")
-                    for _ in range(num_layers)
+                    for _ in range(config.num_layers)
                 ]
             )
 
             self.attentions = nn.ModuleList(
                 [
-                    nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
-                    for _ in range(num_layers)
+                    nn.MultiheadAttention(
+                        config.out_channels, config.num_heads, batch_first=True
+                    )
+                    for _ in range(config.num_layers)
                 ]
             )
 
         self.residual_input_conv = nn.ModuleList(
             [
                 nn.Conv2d(
-                    in_channels if i == 0 else out_channels, out_channels, kernel_size=1
+                    config.in_channels if i == 0 else config.out_channels,
+                    config.out_channels,
+                    kernel_size=1,
                 )
-                for i in range(num_layers)
+                for i in range(config.num_layers)
             ]
         )
 
-        if self.down_sample:
-            self.down_sample_conv = nn.Conv2d(out_channels, out_channels, 4, 2, 1)
+        if self.config.down_sample:
+            self.down_sample_conv = nn.Conv2d(
+                self.config.out_channels, self.config.out_channels, 4, 2, 1
+            )
         else:
             self.down_sample_conv = nn.Identity()
 
-        self.register_forward_hook(forward_hook)
+        # self.register_forward_hook(forward_hook)
+        # self.hooks = {}
+        # for name, module in self.named_modules():
+        #     self.hooks[name] = module.register_forward_hook(forward_hook)
 
     def forward(self, x, t_emb=None):
         out = x
-        for i in range(self.num_layers):
+        for i in range(self.config.num_layers):
             # Resnet block of Unet
             resnet_input = out
             out = self.resnet_conv_first[i](out)
-            if self.t_emb_dim is not None:
+            if self.config.t_emb_dim is not None:
                 out = out + self.t_emb_layers[i](t_emb)[:, :, None, None]
             out = self.resnet_conv_second[i](out)
             out = out + self.residual_input_conv[i](resnet_input)
 
-            if self.attn:
+            if self.config.attn:
                 # Attention block of Unet
                 batch_size, channels, h, w = out.shape
                 in_attn = out.reshape(batch_size, channels, h * w)

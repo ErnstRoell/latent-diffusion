@@ -134,10 +134,10 @@ class UpBlock(nn.Module):
             else nn.Identity()
         )
 
-        self.register_forward_hook(forward_hook)
-        self.hooks = {}
-        for name, module in self.named_modules():
-            self.hooks[name] = module.register_forward_hook(forward_hook)
+        # self.register_forward_hook(forward_hook)
+        # self.hooks = {}
+        # for name, module in self.named_modules():
+        #     self.hooks[name] = module.register_forward_hook(forward_hook)
 
     def forward(self, x, out_down=None, t_emb=None, context=None):
         x = self.up_sample_conv(x)
