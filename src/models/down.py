@@ -94,8 +94,8 @@ class DownBlock(nn.Module):
             [
                 nn.Sequential(
                     get_normlayer(
-                        norm_channels,
-                        out_channels,
+                        config.norm_channels,
+                        config.out_channels,
                         normtype=config.normtype,
                     ),
                     nn.SiLU(),
@@ -114,7 +114,9 @@ class DownBlock(nn.Module):
         if self.config.attn:
             self.attention_norms = nn.ModuleList(
                 [
-                    get_normlayer(norm_channels, out_channels, normtype="group")
+                    get_normlayer(
+                        config.norm_channels, config.out_channels, normtype="group"
+                    )
                     for _ in range(config.num_layers)
                 ]
             )
@@ -180,33 +182,33 @@ class DownBlock(nn.Module):
 if __name__ == "__main__":
     import torch
 
-    block_1 = DownBlock(
-        in_channels=64,
-        out_channels=128,
-        t_emb_dim=128,
-        down_sample=True,
-        num_heads=16,
-        num_layers=2,
-        attn=True,
-        norm_channels=32,
-        normtype="group",
-    )
-    block_2 = DownBlock(
-        in_channels=64,
-        out_channels=128,
-        t_emb_dim=128,
-        down_sample=True,
-        num_heads=8,
-        num_layers=7,
-        attn=True,
-        norm_channels=64,
-        normtype="group",
-    )
+    # block_1 = DownBlock(
+    #     in_channels=64,
+    #     out_channels=128,
+    #     t_emb_dim=128,
+    #     down_sample=True,
+    #     num_heads=16,
+    #     num_layers=2,
+    #     attn=True,
+    #     norm_channels=32,
+    #     normtype="group",
+    # )
+    # block_2 = DownBlock(
+    #     in_channels=64,
+    #     out_channels=128,
+    #     t_emb_dim=128,
+    #     down_sample=True,
+    #     num_heads=8,
+    #     num_layers=7,
+    #     attn=True,
+    #     norm_channels=64,
+    #     normtype="group",
+    # )
 
     img = torch.zeros(10, 64, 28, 28)
     t_emb = torch.ones(10, 128)
-    block_1(img, t_emb)
-    block_2(img, t_emb)
+    # block_1(img, t_emb)
+    # block_2(img, t_emb)
 
     # from torchinfo import summary
     # print(summary(block))
