@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 
 from typing import Union
 from dataclasses import dataclass, asdict
@@ -53,14 +54,18 @@ class DownBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
 
+        assert config.t_emb_dim % config.num_heads == 0, ValueError(
+            f"Expected embedding dimension / number of heads ({config.t_emb_dim} / {config.num_heads}) to be an integer."
+        )
+
+        assert config.in_channels % config.norm_channels == 0, ValueError(
+            f"Expected input channels / number of groups ({config.in_channels} / {config.norm_channels}) to be an integer."
+        )
+
         self.config = config
 
         logger.info("Config:", **asdict(self.config))
 
-        self.config.num_layers = config.num_layers
-        self.config.down_sample = config.down_sample
-        self.config.attn = config.attn
-        self.config.t_emb_dim = config.t_emb_dim
         self.resnet_conv_first = nn.ModuleList(
             [
                 nn.Sequential(
@@ -148,7 +153,7 @@ class DownBlock(nn.Module):
         else:
             self.down_sample_conv = nn.Identity()
 
-        # self.register_forward_hook(forward_hook)
+        self.register_forward_hook(forward_hook)
         # self.hooks = {}
         # for name, module in self.named_modules():
         #     self.hooks[name] = module.register_forward_hook(forward_hook)
@@ -182,32 +187,34 @@ class DownBlock(nn.Module):
 if __name__ == "__main__":
     import torch
 
-    # block_1 = DownBlock(
-    #     in_channels=64,
-    #     out_channels=128,
-    #     t_emb_dim=128,
-    #     down_sample=True,
-    #     num_heads=16,
-    #     num_layers=2,
-    #     attn=True,
-    #     norm_channels=32,
-    #     normtype="group",
-    # )
-    # block_2 = DownBlock(
-    #     in_channels=64,
-    #     out_channels=128,
-    #     t_emb_dim=128,
-    #     down_sample=True,
-    #     num_heads=8,
-    #     num_layers=7,
-    #     attn=True,
-    #     norm_channels=64,
-    #     normtype="group",
-    # )
+    config = DownConfig(
+        in_channels=64,
+        out_channels=128,
+        t_emb_dim=128,
+        down_sample=True,
+        num_heads=16,
+        num_layers=2,
+        attn=True,
+        norm_channels=32,
+        normtype="group",
+    )
+    block_1 = DownConfig(
+        in_channels=64,
+        out_channels=128,
+        t_emb_dim=128,
+        down_sample=True,
+        num_heads=8,
+        num_layers=7,
+        attn=True,
+        norm_channels=64,
+        normtype="group",
+    )
+
+    block = DownBlock(config=config)
 
     img = torch.zeros(10, 64, 28, 28)
     t_emb = torch.ones(10, 128)
-    # block_1(img, t_emb)
+    block(img, t_emb)
     # block_2(img, t_emb)
 
     # from torchinfo import summary
