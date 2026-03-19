@@ -1,23 +1,12 @@
 import torch.nn as nn
-import torch
-from typing import Union
 from hooks.forward import forward_hook
+from models.blocks.resnet import ResNetBlock, ResNetConfig
+from models.blocks.attention import AttentionBlock, AttentionConfig
 from dataclasses import dataclass, asdict
 
 import structlog
 
 logger = structlog.get_logger()
-
-
-def get_normlayer(
-    norm_channels,
-    in_channels,
-    normtype="group",
-) -> Union[nn.GroupNorm, nn.BatchNorm2d]:
-    if normtype == "group":
-        return nn.GroupNorm(norm_channels, in_channels)
-    else:
-        return nn.BatchNorm2d(in_channels)
 
 
 @dataclass
@@ -28,181 +17,81 @@ class MidConfig:
     num_heads: int
     num_layers: int
     norm_channels: int
+    attn: bool
 
 
 class MidBlock(nn.Module):
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        t_emb_dim,
-        num_heads,
-        num_layers,
-        norm_channels,
-        cross_attn=None,
-        context_dim=None,
-        normtype="group",
+        config,
     ):
         super().__init__()
 
-        self.config = MidConfig(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            t_emb_dim=t_emb_dim,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            norm_channels=norm_channels,
-        )
+        self.config = config
         logger.info("MidConfig", **asdict(self.config))
 
-        self.num_layers = num_layers
-        self.t_emb_dim = t_emb_dim
-        self.context_dim = context_dim
-        self.cross_attn = cross_attn
+        # Either attention blocks or identity.
+        self.resnet_blocks = nn.ModuleList()
+        self.attn_blocks = nn.ModuleList()
+        self.emb_blocks = nn.ModuleList()
+        self.first_resnet_block = ResNetBlock(
+            ResNetConfig(
+                in_channels=self.config.in_channels,
+                out_channels=self.config.out_channels,
+                t_emb_dim=self.config.t_emb_dim,
+                down_sample=False,
+                norm_channels=self.config.norm_channels,
+                normtype="group",
+            )
+        )
 
-        # logger.info(
-        #     "MidBlock",
-        #     in_channels=in_channels,
-        #     out_channels=out_channels,
-        #     t_emb_dim=t_emb_dim,
-        #     num_heads=num_heads,
-        #     num_layers=num_layers,
-        #     norm_channels=norm_channels,
-        # )
-
-        self.resnet_conv_first = nn.ModuleList(
-            [
-                nn.Sequential(
-                    get_normlayer(
-                        norm_channels,
-                        in_channels if i == 0 else out_channels,
-                        normtype=normtype,
-                    ),
-                    nn.SiLU(),
-                    nn.Conv2d(
-                        in_channels if i == 0 else out_channels,
-                        out_channels,
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                    ),
+        for _ in range(self.config.num_layers):
+            ###################
+            #  ResNet Blocks  #
+            ###################
+            self.resnet_blocks.append(
+                ResNetBlock(
+                    ResNetConfig(
+                        in_channels=self.config.out_channels,
+                        out_channels=self.config.out_channels,
+                        t_emb_dim=self.config.t_emb_dim,
+                        down_sample=False,
+                        norm_channels=self.config.norm_channels,
+                        normtype="group",
+                    )
                 )
-                for i in range(num_layers + 1)
-            ]
-        )
-
-        if self.t_emb_dim is not None:
-            self.t_emb_layers = nn.ModuleList(
-                [
-                    nn.Sequential(nn.SiLU(), nn.Linear(t_emb_dim, out_channels))
-                    for _ in range(num_layers + 1)
-                ]
             )
-        self.resnet_conv_second = nn.ModuleList(
-            [
-                nn.Sequential(
-                    get_normlayer(norm_channels, out_channels, normtype=normtype),
-                    nn.SiLU(),
-                    nn.Conv2d(
-                        out_channels, out_channels, kernel_size=3, stride=1, padding=1
-                    ),
+
+            ####################
+            #  Self Attention  #
+            ####################
+            if self.config.attn:
+                self.attn_blocks.append(
+                    AttentionBlock(
+                        AttentionConfig(
+                            in_channels=self.config.out_channels,  # Out channels from resnet.
+                            t_emb_dim=self.config.t_emb_dim,
+                            norm_channels=self.config.norm_channels,
+                            num_heads=self.config.num_heads,
+                            normtype="group",
+                        )
+                    )
                 )
-                for _ in range(num_layers + 1)
-            ]
-        )
+            else:
+                self.attn_blocks.append(nn.Identity())
 
-        self.attention_norms = nn.ModuleList(
-            [
-                get_normlayer(norm_channels, out_channels, normtype="group")
-                for _ in range(num_layers)
-            ]
-        )
-
-        self.attentions = nn.ModuleList(
-            [
-                nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
-                for _ in range(num_layers)
-            ]
-        )
-        if self.cross_attn:
-            assert (
-                context_dim is not None
-            ), "Context Dimension must be passed for cross attention"
-            self.cross_attention_norms = nn.ModuleList(
-                [
-                    get_normlayer(norm_channels, out_channels, normtype=normtype)
-                    for _ in range(num_layers)
-                ]
-            )
-            self.cross_attentions = nn.ModuleList(
-                [
-                    nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
-                    for _ in range(num_layers)
-                ]
-            )
-            self.context_proj = nn.ModuleList(
-                [nn.Linear(context_dim, out_channels) for _ in range(num_layers)]
-            )
-        self.residual_input_conv = nn.ModuleList(
-            [
-                nn.Conv2d(
-                    in_channels if i == 0 else out_channels, out_channels, kernel_size=1
-                )
-                for i in range(num_layers + 1)
-            ]
-        )
-        # self.register_forward_hook(forward_hook)
-        # self.hooks = {}
-        # for name, module in self.named_modules():
-        #     self.hooks[name] = module.register_forward_hook(forward_hook)
+        self.register_forward_hook(forward_hook)
 
     def forward(self, x, t_emb=None, context=None):
         out = x
 
-        # First resnet block
-        resnet_input = out
-        # logger.info({"shape": out.shape})
-        out = self.resnet_conv_first[0](out)
-        if self.t_emb_dim is not None:
-            out = out + self.t_emb_layers[0](t_emb)[:, :, None, None]
-        out = self.resnet_conv_second[0](out)
-        out = out + self.residual_input_conv[0](resnet_input)
+        out = self.first_resnet_block(out, t_emb)
 
-        for i in range(self.num_layers):
-            # Attention Block
-            batch_size, channels, h, w = out.shape
-            in_attn = out.reshape(batch_size, channels, h * w)
-            in_attn = self.attention_norms[i](in_attn)
-            in_attn = in_attn.transpose(1, 2)
-            out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
-            out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
-            out = out + out_attn
+        for resnet, attn in zip(self.resnet_blocks, self.attn_blocks):
+            # Resnet block of Unet
+            out = resnet(out, t_emb)
 
-            if self.cross_attn:
-                assert (
-                    context is not None
-                ), "context cannot be None if cross attention layers are used"
-                batch_size, channels, h, w = out.shape
-                in_attn = out.reshape(batch_size, channels, h * w)
-                in_attn = self.cross_attention_norms[i](in_attn)
-                in_attn = in_attn.transpose(1, 2)
-                assert (
-                    context.shape[0] == x.shape[0]
-                    and context.shape[-1] == self.context_dim
-                )
-                context_proj = self.context_proj[i](context)
-                out_attn, _ = self.cross_attentions[i](
-                    in_attn, context_proj, context_proj
-                )
-                out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
-                out = out + out_attn
-
-            # Resnet Block
-            resnet_input = out
-            out = self.resnet_conv_first[i + 1](out)
-            if self.t_emb_dim is not None:
-                out = out + self.t_emb_layers[i + 1](t_emb)[:, :, None, None]
-            out = self.resnet_conv_second[i + 1](out)
-            out = out + self.residual_input_conv[i + 1](resnet_input)
+            # Attention block of Unet
+            out = attn(out)
 
         return out

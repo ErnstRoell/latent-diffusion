@@ -1,28 +1,41 @@
 from dataclasses import dataclass
-
-
 import torch
 import torch.nn as nn
 from models.down import DownBlock, DownConfig
-from models.mid import MidBlock
+from models.mid import MidBlock, MidConfig
 from models.up import UpBlock, UpConfig
 from torch import nn
 import structlog
 
 logger = structlog.get_logger()
+import json
+
+
+def config_to_dict(config):
+    """
+    Converts nested namespace to nested dictionary.
+    Needed for printing."""
+    return json.loads(
+        json.dumps(config, default=lambda s: vars(s)),
+    )
+
+
+def flip_and_multiply(up_config: dict):
+    # Flip in and out channel dims.
+    in_channels = up_config["out_channels"]
+    out_channels = up_config["in_channels"]
+    up_config["out_channels"] = out_channels
+    up_config["in_channels"] = in_channels
+    up_config["in_channels"] = 2 * in_channels
+    up_config["up_sample"] = up_config["down_sample"]  # type: ignore
+    up_config.pop("normtype")
+    up_config.pop("down_sample")
+    return UpConfig(**up_config)
 
 
 def get_time_embedding(time_steps, temb_dim):
-    r"""
-    Convert time steps tensor into an embedding using the
-    sinusoidal time embedding formula
-    :param time_steps: 1D tensor of length batch size
-    :param temb_dim: Dimension of the embedding
-    :return: BxD embedding representation of B time steps
-    """
     assert temb_dim % 2 == 0, "time embedding dimension must be divisible by 2"
 
-    # factor = 10000^(2i/d_model)
     factor = 10000 ** (
         (
             torch.arange(
@@ -46,18 +59,9 @@ def get_time_embedding(time_steps, temb_dim):
 class ModelConfig:
     module: str
     time_emb_dim: int
-    down_sample: list[bool]
     im_channels: int
-    down_channels: list[int]
-    num_heads: int
-    mid_channels: list[int]
-    attn_down: list[bool]
-    attn_up: list[bool]
-    norm_channels: int
-    conv_out_channels: int
-    num_down_layers: int
-    num_mid_layers: int
-    num_up_layers: int
+    down_blocks: list[DownConfig]
+    mid_blocks: list[MidConfig]
 
 
 class Unet(nn.Module):
@@ -82,7 +86,7 @@ class Unet(nn.Module):
 
         self.conv_in = nn.Conv2d(
             self.config.im_channels,
-            self.config.down_channels[0],  # type: ignore
+            self.config.down_blocks[0].in_channels,  # type: ignore
             kernel_size=3,
             padding=1,
         )
@@ -91,129 +95,114 @@ class Unet(nn.Module):
         #  Down blocks UNet  #
         ######################
 
+        self.conv_out_channels = self.config.down_blocks[0].in_channels
+        self.norm_channels = self.config.down_blocks[0].norm_channels
+
         self.downs = nn.ModuleList([])
-        for i in range(len(self.config.down_channels) - 1):  # type: ignore
-            downconfig = DownConfig(
-                in_channels=self.config.down_channels[i],
-                out_channels=self.config.down_channels[i + 1],
-                t_emb_dim=self.config.time_emb_dim,
-                down_sample=self.config.down_sample[i],
-                num_heads=self.config.num_heads,
-                num_layers=self.config.num_down_layers,
-                attn=self.config.attn_down[i],
-                norm_channels=self.config.norm_channels,
-                normtype="group",
-            )
-            self.downs.append(DownBlock(downconfig))
+        for down_config in self.config.down_blocks:  # type: ignore
+            down_config = config_to_dict(down_config)
+            self.downs.append(DownBlock(DownConfig(**down_config)))
 
         #####################
         #  Mid blocks UNet  #
         #####################
 
         self.mids = nn.ModuleList([])
-        for i in range(len(self.config.mid_channels) - 1):  # type: ignore
-            self.mids.append(
-                MidBlock(
-                    self.config.mid_channels[i],  # type: ignore
-                    self.config.mid_channels[i + 1],  # type: ignore
-                    self.config.time_emb_dim,
-                    num_heads=self.config.num_heads,
-                    num_layers=self.config.num_mid_layers,
-                    norm_channels=self.config.norm_channels,
-                )
-            )
+        for mid_config in self.config.mid_blocks:  # type: ignore
+            mid_config = MidConfig(**config_to_dict(mid_config))
+            self.mids.append(MidBlock(mid_config))
 
         ####################
         #  Up Blocks UNet  #
         ####################
 
-        self.up_sample = list(reversed(self.config.down_sample))  # type: ignore
         self.ups = nn.ModuleList([])
-        # print("REV LIST", self.config.down_channels[::-1])
-        for i in range(len(self.config.down_channels) - 1, 0, -1):  # type: ignore
-            self.ups.append(
-                UpBlock(
-                    UpConfig(
-                        in_channels=2 * self.config.down_channels[i],  # type: ignore
-                        out_channels=(
-                            self.config.down_channels[i - 1]
-                            if i - 1 != 0
-                            else self.config.conv_out_channels
-                        ),  # type: ignore
-                        t_emb_dim=self.config.time_emb_dim,
-                        up_sample=self.config.down_sample[i - 1],  # type: ignore
-                        num_heads=self.config.num_heads,
-                        num_layers=self.config.num_up_layers,
-                        norm_channels=self.config.norm_channels,
-                        attn=self.config.attn_down[i - 1],  # type: ignore
-                    )
-                )
-            )
+        for down_config in reversed(self.config.down_blocks):
+            # Flip and multiply input and output channels
+            down_config = config_to_dict(down_config)
+            up_config = flip_and_multiply(down_config)
+            self.ups.append(UpBlock(up_config))  # type: ignore
+
+        #########################
+        #  Output convolutions  #
+        #########################
 
         self.norm_out = nn.GroupNorm(
-            self.config.norm_channels,
-            self.config.conv_out_channels,
+            self.norm_channels,
+            self.conv_out_channels,
         )  # type: ignore
         self.conv_out = nn.Conv2d(
-            self.config.conv_out_channels,
+            self.conv_out_channels,
             self.config.im_channels,
             kernel_size=3,
             padding=1,  # type: ignore
         )
 
     def forward(self, x, t):
-        # Shapes assuming downblocks are [C1, C2, C3, C4]
-        # Shapes assuming midblocks are [C4, C4, C3]
-        # Shapes assuming downsamples are [True, True, False]
-        # B x C x H x W
         out = self.conv_in(x)
-        # B x C1 x H x W
-
-        # t_emb -> B x t_emb_dim
         t_emb = get_time_embedding(torch.as_tensor(t).long(), self.config.time_emb_dim)
         t_emb = self.t_proj(t_emb)
 
         down_outs = []
-
         for idx, down in enumerate(self.downs):
             out = down(out, t_emb)
             down_outs.append(out)
-        # down_outs  [B x C1 x H x W, B x C2 x H/2 x W/2, B x C3 x H/4 x W/4]
-        # out B x C4 x H/4 x W/4
 
         for mid in self.mids:
             out = mid(out, t_emb)
-        # out B x C3 x H/4 x W/4
 
         for up in self.ups:
             down_out = down_outs.pop()
             out = up(out, down_out, t_emb)
-            # out [B x C2 x H/4 x W/4, B x C1 x H/2 x W/2, B x 16 x H x W]
+
         out = self.norm_out(out)
         out = nn.SiLU()(out)
         out = self.conv_out(out)
-        # out B x C x H x W
         return out
 
 
 if __name__ == "__main__":
-
     config = ModelConfig(
         module="",
         im_channels=1,
-        down_channels=[64, 128, 256],
-        mid_channels=[256, 256],
-        down_sample=[False, True],
-        attn_down=[False, True],
-        attn_up=[False, False],
-        time_emb_dim=128,
-        norm_channels=16,
-        num_heads=16,
-        conv_out_channels=128,
-        num_down_layers=2,
-        num_mid_layers=2,
-        num_up_layers=2,
+        time_emb_dim=128,  # Should be the same everywhere.
+        down_blocks=[
+            DownConfig(
+                in_channels=64,
+                out_channels=128,
+                t_emb_dim=128,
+                down_sample=False,
+                num_heads=16,
+                num_layers=2,
+                attn=False,
+                norm_channels=16,
+                normtype="group",
+            ),
+            DownConfig(
+                in_channels=128,
+                out_channels=256,
+                t_emb_dim=128,
+                down_sample=True,
+                num_heads=16,
+                num_layers=2,
+                attn=True,
+                norm_channels=16,
+                normtype="group",
+            ),
+        ],
+        mid_blocks=[
+            MidConfig(
+                in_channels=256,
+                out_channels=256,
+                t_emb_dim=128,
+                num_heads=16,
+                num_layers=2,
+                attn=True,
+                norm_channels=16,
+            ),
+        ],
     )
+
     model = Unet(config).cuda()
 
     im = torch.zeros(size=(32, 1, 28, 28)).cuda()

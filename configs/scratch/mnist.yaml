@@ -14,18 +14,35 @@ scheduler:
 model:
   module: ""
   im_channels: 1
-  down_channels: [64,128,128]
-  mid_channels: [128,128]
-  down_sample: [False,True]
-  attn_down: [False,False]
-  attn_up: [True, True]
   time_emb_dim: 128
-  norm_channels: 16
-  num_heads: 16
-  conv_out_channels: 128
-  num_down_layers: 2
-  num_mid_layers: 2
-  num_up_layers: 2
+  down_blocks: 
+    - in_channels: 64
+      out_channels: 128
+      t_emb_dim: 128
+      down_sample: True
+      num_heads: 16
+      num_layers: 2
+      attn: False
+      norm_channels: 16
+      normtype: group
+    - in_channels: 128
+      out_channels: 256
+      down_sample: False
+      attn: True
+      t_emb_dim: 128
+      num_heads: 16
+      num_layers: 2
+      norm_channels: 16
+      normtype: group
+  mid_blocks:
+    - in_channels: 256
+      out_channels: 256
+      attn: True
+      t_emb_dim: 128
+      num_heads: 16
+      num_layers: 2
+      norm_channels: 16
+
 
 trainer:
   num_epochs: 5
