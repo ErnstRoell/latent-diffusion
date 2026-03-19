@@ -84,12 +84,12 @@ def train(args):
         model.train()
         model.to(fabric.device)
 
-    logger = CSVLogger(
-        f"{result_folder}/logs",
-        name=config.meta.modelname,
-        version=f"trainlogs_{epoch:04d}",
-        flush_logs_every_n_steps=config.trainer.flush_logs_every_n_steps,
-    )
+    # logger = CSVLogger(
+    #     f"{result_folder}/logs",
+    #     name=config.meta.modelname,
+    #     version=f"trainlogs_{epoch:04d}",
+    #     flush_logs_every_n_steps=config.trainer.flush_logs_every_n_steps,
+    # )
 
     if compile:
         model = torch.compile(model)
@@ -100,7 +100,7 @@ def train(args):
     model, optimizer = fabric.setup(model, optimizer)  # type: ignore
 
     model.train()
-    print(f"Start training from epoch {epoch} ...")
+    logger.info(f"Start training from epoch {epoch} ...")
     for epoch_idx in range(epoch, epoch + config.trainer.num_epochs):
         losses = []
         for step, (im,) in enumerate(tqdm(train_loader)):
@@ -127,8 +127,11 @@ def train(args):
                 optimizer.step()
                 optimizer.zero_grad()
 
-        logger.log_metrics({"train_loss": np.mean(losses)}, step=epoch_idx)  # type: ignore
-        print("Finished epoch:{} | Loss : {:.4f}".format(epoch_idx, np.mean(losses)))
+        logger.info(
+            "Finished epoch:{} | Loss : {:.4f}".format(epoch_idx, np.mean(losses)),
+            train_loss=np.mean(losses),
+            epoch=epoch_idx,
+        )
 
         if epoch_idx % config.trainer.validation_interval == 0:
             val_losses = []
@@ -142,8 +145,8 @@ def train(args):
                     noise_pred = model(noisy_im, t)
                     loss = criterion(noise_pred, noise)
                     val_losses.append(loss.item())
-                logger.log_metrics({"val_loss": np.mean(val_losses)}, step=epoch_idx)  # type: ignore
-                print(
+                logger.info("Validation", val_loss=np.mean(val_losses), epoch=epoch_idx)
+                logger.info(
                     "Validation epoch:{} | Loss : {:.4f}".format(
                         epoch_idx, np.mean(val_losses)
                     )
@@ -155,9 +158,9 @@ def train(args):
                 result_folder / f"{config.meta.modelname}_{epoch_idx:04}.ckpt", state
             )
 
-    print("Done Training ...")
+    logger.info("Done Training ...")
     state = {"model": model, "epoch": epoch_idx + 1}
-    print(f"Epoch: {epoch_idx}")
+    logger.info(f"Epoch: {epoch_idx}")
     fabric.save(result_folder / f"{config.meta.modelname}_9999.ckpt", state)
 
 
