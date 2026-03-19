@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 import torch
 import torch.nn as nn
 from models.down import DownBlock, DownConfig
@@ -128,17 +129,22 @@ class Unet(nn.Module):
 
         self.up_sample = list(reversed(self.config.down_sample))  # type: ignore
         self.ups = nn.ModuleList([])
-        for i in reversed(range(len(self.config.down_channels) - 1)):  # type: ignore
+        # print("REV LIST", self.config.down_channels[::-1])
+        for i in range(len(self.config.down_channels) - 1, 0, -1):  # type: ignore
             self.ups.append(
                 UpBlock(
-                    self.config.down_channels[i] * 2,  # type: ignore
-                    self.config.down_channels[i - 1] if i != 0 else self.config.conv_out_channels,  # type: ignore
-                    self.config.time_emb_dim,
-                    up_sample=self.config.down_sample[i],  # type: ignore
+                    in_channels=2 * self.config.down_channels[i],  # type: ignore
+                    out_channels=(
+                        self.config.down_channels[i - 1]
+                        if i - 1 != 0
+                        else self.config.conv_out_channels
+                    ),  # type: ignore
+                    t_emb_dim=self.config.time_emb_dim,
+                    up_sample=self.config.down_sample[i - 1],  # type: ignore
                     num_heads=self.config.num_heads,
                     num_layers=self.config.num_up_layers,
                     norm_channels=self.config.norm_channels,
-                    # attn=self.config.attn_up[i],  # type: ignore
+                    attn=self.config.attn_down[i - 1],  # type: ignore
                 )
             )
 
@@ -168,8 +174,8 @@ class Unet(nn.Module):
         down_outs = []
 
         for idx, down in enumerate(self.downs):
-            down_outs.append(out)
             out = down(out, t_emb)
+            down_outs.append(out)
         # down_outs  [B x C1 x H x W, B x C2 x H/2 x W/2, B x C3 x H/4 x W/4]
         # out B x C4 x H/4 x W/4
 

@@ -14,13 +14,12 @@ scheduler:
 model:
   module: ""
   im_channels: 1
-  down_channels: [64,128,128]
+  down_channels: [32,64,128]
   mid_channels: [128,128]
-  down_sample: [False,True]
-  attn_down: [False,False]
-  attn_up: [True, True]
+  down_sample: [True,True]
+  attn_down: [False,True]
   time_emb_dim: 128
-  norm_channels: 16
+  norm_channels: 8
   num_heads: 16
   conv_out_channels: 128
   num_down_layers: 2
@@ -32,6 +31,7 @@ trainer:
   lr: 0.0005
   checkpoint_interval: 20
   validation_interval: 10
+  flush_logs_every_n_steps: 1
 
 meta:
   modelname: unet

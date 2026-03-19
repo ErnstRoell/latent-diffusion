@@ -5,6 +5,7 @@ from typing import Union
 from dataclasses import dataclass, asdict
 
 import structlog
+from hooks.forward import forward_hook
 
 logger = structlog.get_logger()
 
@@ -33,15 +34,6 @@ def get_normlayer(
         return nn.BatchNorm2d(in_channels)
 
 
-def forward_hook(module, input, output):
-    log = logger.bind(module=module.__class__.__name__)
-    if isinstance(output, torch.Tensor):
-        outs = output.shape
-    elif isinstance(output, tuple):
-        outs = [el.shape for el in output]
-    log.info("Shape", in_shape=input[0].shape, out_shape=outs)
-
-
 class DownBlock(nn.Module):
     r"""
     Down conv block with attention.
@@ -64,7 +56,7 @@ class DownBlock(nn.Module):
 
         self.config = config
 
-        logger.info("Config:", **asdict(self.config))
+        logger.info("DownConfig:", **asdict(self.config))
 
         self.resnet_conv_first = nn.ModuleList(
             [
@@ -153,7 +145,8 @@ class DownBlock(nn.Module):
         else:
             self.down_sample_conv = nn.Identity()
 
-        self.register_forward_hook(forward_hook)
+        # if dev:
+        #     self.register_forward_hook(forward_hook)
         # self.hooks = {}
         # for name, module in self.named_modules():
         #     self.hooks[name] = module.register_forward_hook(forward_hook)

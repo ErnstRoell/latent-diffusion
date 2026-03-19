@@ -9,7 +9,7 @@ import torchvision
 
 # Load the generated tensors
 
-im = (torch.load("results/scratch/unet_mnist_test_0000_generated.pt") + 1) / 2
+im = (torch.load("results/scratch/unet_0000_generated.pt") + 1) / 2
 
 print("----global min max----")
 print(im.min())

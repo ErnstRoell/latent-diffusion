@@ -1,5 +1,8 @@
 import torch.nn as nn
+import torch
 from typing import Union
+from hooks.forward import forward_hook
+from dataclasses import dataclass, asdict
 
 import structlog
 
@@ -17,22 +20,17 @@ def get_normlayer(
         return nn.BatchNorm2d(in_channels)
 
 
-def forward_hook(module, input, output):
-    logger.info(f"Inside forward hook for {module.__class__.__name__}")
-    logger.info(f"Input shape: {input[0].shape}")
-    logger.info(f"Output shape: {output.shape}")
-    logger.info("--------")
+@dataclass
+class MidConfig:
+    in_channels: int
+    out_channels: int
+    t_emb_dim: int
+    num_heads: int
+    num_layers: int
+    norm_channels: int
 
 
 class MidBlock(nn.Module):
-    r"""
-    Mid conv block with attention.
-    Sequence of following blocks
-    1. Resnet block with time embedding
-    2. Attention block
-    3. Resnet block with time embedding
-    """
-
     def __init__(
         self,
         in_channels,
@@ -46,10 +44,32 @@ class MidBlock(nn.Module):
         normtype="group",
     ):
         super().__init__()
+
+        self.config = MidConfig(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            t_emb_dim=t_emb_dim,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            norm_channels=norm_channels,
+        )
+        logger.info("MidConfig", **asdict(self.config))
+
         self.num_layers = num_layers
         self.t_emb_dim = t_emb_dim
         self.context_dim = context_dim
         self.cross_attn = cross_attn
+
+        # logger.info(
+        #     "MidBlock",
+        #     in_channels=in_channels,
+        #     out_channels=out_channels,
+        #     t_emb_dim=t_emb_dim,
+        #     num_heads=num_heads,
+        #     num_layers=num_layers,
+        #     norm_channels=norm_channels,
+        # )
+
         self.resnet_conv_first = nn.ModuleList(
             [
                 nn.Sequential(
@@ -138,11 +158,10 @@ class MidBlock(nn.Module):
 
     def forward(self, x, t_emb=None, context=None):
         out = x
-        logger.info("Entering Mid")
 
         # First resnet block
         resnet_input = out
-        logger.info({"shape": out.shape})
+        # logger.info({"shape": out.shape})
         out = self.resnet_conv_first[0](out)
         if self.t_emb_dim is not None:
             out = out + self.t_emb_layers[0](t_emb)[:, :, None, None]

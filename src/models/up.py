@@ -1,17 +1,12 @@
 import torch
 import torch.nn as nn
 from typing import Union
+from hooks.forward import forward_hook
+from dataclasses import dataclass, asdict
 
 import structlog
 
 logger = structlog.get_logger()
-
-
-def forward_hook(module, input, output):
-    logger.info(f"Inside forward hook for {module.__class__.__name__}")
-    logger.info(f"Input shape: {input[0].shape}")
-    logger.info(f"Output shape: {output.shape}")
-    logger.info("--------")
 
 
 def get_normlayer(
@@ -23,6 +18,17 @@ def get_normlayer(
         return nn.GroupNorm(norm_channels, in_channels)
     else:
         return nn.BatchNorm2d(in_channels)
+
+
+@dataclass
+class UpConfig:
+    in_channels: int
+    out_channels: int
+    t_emb_dim: int
+    up_sample: bool
+    num_heads: int
+    num_layers: int
+    norm_channels: int
 
 
 class UpBlock(nn.Module):
@@ -44,14 +50,29 @@ class UpBlock(nn.Module):
         num_heads,
         num_layers,
         norm_channels,
+        attn,
         cross_attn=False,
         context_dim=None,
     ):
         super().__init__()
+        self.config = UpConfig(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            t_emb_dim=t_emb_dim,
+            up_sample=up_sample,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            norm_channels=norm_channels,
+        )
+        logger.info("UpConfig", **asdict(self.config))
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.num_layers = num_layers
         self.up_sample = up_sample
         self.t_emb_dim = t_emb_dim
         self.cross_attn = cross_attn
+        self.attn = attn
         self.context_dim = context_dim
         self.resnet_conv_first = nn.ModuleList(
             [
@@ -104,22 +125,6 @@ class UpBlock(nn.Module):
             ]
         )
 
-        if self.cross_attn:
-            assert (
-                context_dim is not None
-            ), "Context Dimension must be passed for cross attention"
-            self.cross_attention_norms = nn.ModuleList(
-                [nn.GroupNorm(norm_channels, out_channels) for _ in range(num_layers)]
-            )
-            self.cross_attentions = nn.ModuleList(
-                [
-                    nn.MultiheadAttention(out_channels, num_heads, batch_first=True)
-                    for _ in range(num_layers)
-                ]
-            )
-            self.context_proj = nn.ModuleList(
-                [nn.Linear(context_dim, out_channels) for _ in range(num_layers)]
-            )
         self.residual_input_conv = nn.ModuleList(
             [
                 nn.Conv2d(
@@ -129,7 +134,7 @@ class UpBlock(nn.Module):
             ]
         )
         self.up_sample_conv = (
-            nn.ConvTranspose2d(in_channels, in_channels // 2, 4, 2, 1)
+            nn.ConvTranspose2d(in_channels, in_channels, 4, 2, 1)
             if self.up_sample
             else nn.Identity()
         )
@@ -140,9 +145,15 @@ class UpBlock(nn.Module):
         #     self.hooks[name] = module.register_forward_hook(forward_hook)
 
     def forward(self, x, out_down=None, t_emb=None, context=None):
-        x = self.up_sample_conv(x)
+        assert x.shape[1] == out_down.shape[1]
         if out_down is not None:
             x = torch.cat([x, out_down], dim=1)
+            # logger.info(
+            #     "Out CATTED", shape=x.shape, in_channels=self.config.in_channels
+            # )
+        x = self.up_sample_conv(x)
+
+        # TODO: FIX THIS
 
         out = x
         for i in range(self.num_layers):
@@ -154,34 +165,32 @@ class UpBlock(nn.Module):
             out = self.resnet_conv_second[i](out)
             out = out + self.residual_input_conv[i](resnet_input)
             # Self Attention
-            # batch_size, channels, h, w = out.shape
-            # in_attn = out.reshape(batch_size, channels, h * w)
-            # in_attn = self.attention_norms[i](in_attn)
-            # in_attn = in_attn.transpose(1, 2)
-            # out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
-            # out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
-            # out = out + out_attn
-            # Cross Attention
-            if self.cross_attn:
-                assert (
-                    context is not None
-                ), "context cannot be None if cross attention layers are used"
+            if self.attn:
                 batch_size, channels, h, w = out.shape
                 in_attn = out.reshape(batch_size, channels, h * w)
-                in_attn = self.cross_attention_norms[i](in_attn)
+                in_attn = self.attention_norms[i](in_attn)
                 in_attn = in_attn.transpose(1, 2)
-                assert (
-                    len(context.shape) == 3
-                ), "Context shape does not match B,_,CONTEXT_DIM"
-                assert (
-                    context.shape[0] == x.shape[0]
-                    and context.shape[-1] == self.context_dim
-                ), "Context shape does not match B,_,CONTEXT_DIM"
-                context_proj = self.context_proj[i](context)
-                out_attn, _ = self.cross_attentions[i](
-                    in_attn, context_proj, context_proj
-                )
+                out_attn, _ = self.attentions[i](in_attn, in_attn, in_attn)
                 out_attn = out_attn.transpose(1, 2).reshape(batch_size, channels, h, w)
                 out = out + out_attn
+            # Cross Attention
 
+        # logger.info("DONE")
         return out
+
+
+# if __name__ == "__main__":
+#     up = UpBlock(
+#         in_channels=128,
+#         out_channels=64,
+#         t_emb_dim=128,
+#         up_sample=False,
+#         num_heads=16,
+#         num_layers=2,
+#         norm_channels=16,
+#     )
+#     im = torch.empty(32, 128, 28, 28)
+#     out_down = torch.empty(32, 128, 28, 28)
+#     t_emb = torch.empty(1, 128)
+#     out = up(im, out_down, t_emb)
+#     print(out.shape)
