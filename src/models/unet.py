@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from models.down import DownBlock, DownConfig
 from models.mid import MidBlock
-from models.up import UpBlock
+from models.up import UpBlock, UpConfig
 from torch import nn
 import structlog
 
@@ -133,18 +133,20 @@ class Unet(nn.Module):
         for i in range(len(self.config.down_channels) - 1, 0, -1):  # type: ignore
             self.ups.append(
                 UpBlock(
-                    in_channels=2 * self.config.down_channels[i],  # type: ignore
-                    out_channels=(
-                        self.config.down_channels[i - 1]
-                        if i - 1 != 0
-                        else self.config.conv_out_channels
-                    ),  # type: ignore
-                    t_emb_dim=self.config.time_emb_dim,
-                    up_sample=self.config.down_sample[i - 1],  # type: ignore
-                    num_heads=self.config.num_heads,
-                    num_layers=self.config.num_up_layers,
-                    norm_channels=self.config.norm_channels,
-                    attn=self.config.attn_down[i - 1],  # type: ignore
+                    UpConfig(
+                        in_channels=2 * self.config.down_channels[i],  # type: ignore
+                        out_channels=(
+                            self.config.down_channels[i - 1]
+                            if i - 1 != 0
+                            else self.config.conv_out_channels
+                        ),  # type: ignore
+                        t_emb_dim=self.config.time_emb_dim,
+                        up_sample=self.config.down_sample[i - 1],  # type: ignore
+                        num_heads=self.config.num_heads,
+                        num_layers=self.config.num_up_layers,
+                        norm_channels=self.config.norm_channels,
+                        attn=self.config.attn_down[i - 1],  # type: ignore
+                    )
                 )
             )
 

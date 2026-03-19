@@ -17,6 +17,12 @@ from models.unet import Unet
 
 from torch.optim import Adam
 from tqdm import tqdm
+import logging
+import structlog
+
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = get_logger()
@@ -99,7 +105,7 @@ def train(args):
         losses = []
         for step, (im,) in enumerate(tqdm(train_loader)):
             # Accumulate gradient 8 batches at a time
-            is_accumulating = step % 8 != 0
+            is_accumulating = step % 2 != 0
 
             with fabric.no_backward_sync(model, enabled=is_accumulating):
 

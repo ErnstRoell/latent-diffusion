@@ -12,6 +12,12 @@ from loaders import load_config
 from models.linear_scheduler import LinearNoiseScheduler
 from models.unet import Unet
 import glob
+import structlog
+import logging
+
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -68,8 +74,8 @@ def main(args):
                 #
                 # Save x0
                 if i == 0:
-                    # Save as (raw) tensors
 
+                    # Save as (raw) tensors
                     torch.save(
                         xt.cpu().detach(), f"{result_folder}/{modelname}_generated.pt"
                     )
