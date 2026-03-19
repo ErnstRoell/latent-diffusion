@@ -5,7 +5,6 @@ import pathlib
 import numpy as np
 import torch
 from lightning.fabric import Fabric
-from lightning.fabric.loggers.csv_logs import CSVLogger  # noqa: F401
 
 from structlog import get_logger
 
@@ -34,7 +33,7 @@ def train(args):
     # Set up Fabric
     fabric = Fabric(
         accelerator="cuda",
-        # precision="16-mixed",
+        precision="16-mixed",
     )
 
     ###################
@@ -84,13 +83,6 @@ def train(args):
         model.train()
         model.to(fabric.device)
 
-    # logger = CSVLogger(
-    #     f"{result_folder}/logs",
-    #     name=config.meta.modelname,
-    #     version=f"trainlogs_{epoch:04d}",
-    #     flush_logs_every_n_steps=config.trainer.flush_logs_every_n_steps,
-    # )
-
     if compile:
         model = torch.compile(model)
 
@@ -129,7 +121,7 @@ def train(args):
 
         logger.info(
             "Finished epoch:{} | Loss : {:.4f}".format(epoch_idx, np.mean(losses)),
-            train_loss=np.mean(losses),
+            train_loss=np.mean(losses).item(),
             epoch=epoch_idx,
         )
 
@@ -145,7 +137,9 @@ def train(args):
                     noise_pred = model(noisy_im, t)
                     loss = criterion(noise_pred, noise)
                     val_losses.append(loss.item())
-                logger.info("Validation", val_loss=np.mean(val_losses), epoch=epoch_idx)
+                logger.info(
+                    "Validation", val_loss=np.mean(val_losses).item(), epoch=epoch_idx
+                )
                 logger.info(
                     "Validation epoch:{} | Loss : {:.4f}".format(
                         epoch_idx, np.mean(val_losses)
