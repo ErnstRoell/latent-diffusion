@@ -28,7 +28,6 @@ def flip_and_multiply(up_config: dict):
     up_config["in_channels"] = in_channels
     up_config["in_channels"] = 2 * in_channels
     up_config["up_sample"] = up_config["down_sample"]  # type: ignore
-    up_config.pop("normtype")
     up_config.pop("down_sample")
     return UpConfig(**up_config)
 
