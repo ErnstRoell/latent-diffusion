@@ -115,18 +115,5 @@ if __name__ == "__main__":
         action="store_true",
         help="Compile modules",
     )
-
-    # parser.add_argument(
-    #     "--vae_config",
-    #     dest="vae_config",
-    #     default="configs/vqvae_airplane.yaml",
-    #     type=str,
-    # )
-    # parser.add_argument(
-    #     "--encoder_config",
-    #     dest="encoder_config",
-    #     default="configs/encoder_airplane.yaml",
-    #     type=str,
-    # )
     args = parser.parse_args()
     main(args)

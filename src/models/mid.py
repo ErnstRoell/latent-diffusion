@@ -13,7 +13,7 @@ logger = structlog.get_logger()
 class MidConfig:
     in_channels: int
     out_channels: int
-    t_emb_dim: int
+    t_emb_dim: int | None
     num_heads: int
     num_layers: int
     norm_channels: int
@@ -28,7 +28,9 @@ class MidBlock(nn.Module):
         super().__init__()
 
         self.config = config
-        logger.info("MidConfig", **asdict(self.config))
+        logger.info(
+            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+        )
 
         # Either attention blocks or identity.
         self.resnet_blocks = nn.ModuleList()

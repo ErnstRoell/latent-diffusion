@@ -12,7 +12,7 @@ logger = structlog.get_logger()
 @dataclass
 class AttentionConfig:
     in_channels: int
-    t_emb_dim: int
+    t_emb_dim: int | None
     num_heads: int
     norm_channels: int
     normtype: str
@@ -30,9 +30,10 @@ class AttentionBlock(nn.Module):
     def __init__(self, config: AttentionConfig):
         super().__init__()
 
-        assert config.t_emb_dim % config.num_heads == 0, ValueError(
-            f"Expected embedding dimension / number of heads ({config.t_emb_dim} / {config.num_heads}) to be an integer."
-        )
+        if config.t_emb_dim is not None:
+            assert config.t_emb_dim % config.num_heads == 0, ValueError(
+                f"Expected embedding dimension / number of heads ({config.t_emb_dim} / {config.num_heads}) to be an integer."
+            )
 
         assert config.in_channels % config.norm_channels == 0, ValueError(
             f"Expected input channels / number of groups ({config.in_channels} / {config.norm_channels}) to be an integer."
@@ -40,7 +41,9 @@ class AttentionBlock(nn.Module):
 
         self.config = config
 
-        logger.info("AttentionConfig:", **asdict(self.config))
+        logger.debug(
+            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+        )
 
         self.attention_norms = nn.GroupNorm(
             config.norm_channels,
@@ -53,7 +56,7 @@ class AttentionBlock(nn.Module):
             batch_first=True,
         )
 
-        # self.register_forward_hook(forward_hook)
+        self.register_forward_hook(forward_hook)
 
     def forward(self, x):
         out = x

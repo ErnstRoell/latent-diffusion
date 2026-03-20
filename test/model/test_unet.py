@@ -1,6 +1,8 @@
 import torch
 from models.unet import ModelConfig, Unet
 
+from models.down import DownConfig
+from models.mid import MidConfig
 
 import pytest
 
@@ -8,34 +10,82 @@ good_configs = [
     ModelConfig(
         module="",
         im_channels=1,
-        down_channels=[64, 128, 256],
-        mid_channels=[256, 256],
-        down_sample=[False, True],
-        attn_down=[False, True],
-        attn_up=[False, False],
-        time_emb_dim=128,
-        norm_channels=16,
-        num_heads=16,
-        conv_out_channels=128,
-        num_down_layers=2,
-        num_mid_layers=2,
-        num_up_layers=2,
+        time_emb_dim=128,  # Should be the same everywhere.
+        down_blocks=[
+            DownConfig(
+                in_channels=64,
+                out_channels=128,
+                t_emb_dim=128,
+                down_sample=False,
+                num_heads=16,
+                num_layers=2,
+                attn=False,
+                norm_channels=16,
+                normtype="group",
+            ),
+            DownConfig(
+                in_channels=128,
+                out_channels=256,
+                t_emb_dim=128,
+                down_sample=True,
+                num_heads=16,
+                num_layers=2,
+                attn=True,
+                norm_channels=16,
+                normtype="group",
+            ),
+        ],
+        mid_blocks=[
+            MidConfig(
+                in_channels=256,
+                out_channels=256,
+                t_emb_dim=128,
+                num_heads=16,
+                num_layers=2,
+                attn=True,
+                norm_channels=16,
+            ),
+        ],
     ),
     ModelConfig(
         module="",
         im_channels=1,
-        down_channels=[16, 64, 64],
-        mid_channels=[64, 64],
-        down_sample=[True, True],
-        attn_down=[True, True],
-        attn_up=[True, True],
-        time_emb_dim=32,
-        norm_channels=8,
-        num_heads=4,
-        conv_out_channels=64,
-        num_down_layers=2,
-        num_mid_layers=2,
-        num_up_layers=2,
+        time_emb_dim=128,  # Should be the same everywhere.
+        down_blocks=[
+            DownConfig(
+                in_channels=64,
+                out_channels=128,
+                t_emb_dim=128,
+                down_sample=False,
+                num_heads=16,
+                num_layers=2,
+                attn=False,
+                norm_channels=16,
+                normtype="group",
+            ),
+            DownConfig(
+                in_channels=128,
+                out_channels=256,
+                t_emb_dim=128,
+                down_sample=True,
+                num_heads=16,
+                num_layers=2,
+                attn=True,
+                norm_channels=16,
+                normtype="group",
+            ),
+        ],
+        mid_blocks=[
+            MidConfig(
+                in_channels=256,
+                out_channels=256,
+                t_emb_dim=128,
+                num_heads=16,
+                num_layers=2,
+                attn=True,
+                norm_channels=16,
+            ),
+        ],
     ),
 ]
 

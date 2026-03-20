@@ -14,7 +14,7 @@ logger = structlog.get_logger()
 class ResNetConfig:
     in_channels: int
     out_channels: int
-    t_emb_dim: int
+    t_emb_dim: int | None
     down_sample: bool
     norm_channels: int
     normtype: str
@@ -46,7 +46,9 @@ class ResNetBlock(nn.Module):
             f"Expected input channels / number of groups ({config.in_channels} / {config.norm_channels}) to be an integer."
         )
 
-        logger.debug("ResNetConfig:", **asdict(self.config))
+        logger.debug(
+            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+        )
 
         self.resnet_conv_first = nn.Sequential(
             get_normlayer(

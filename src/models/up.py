@@ -15,7 +15,7 @@ logger = structlog.get_logger()
 class UpConfig:
     in_channels: int
     out_channels: int
-    t_emb_dim: int
+    t_emb_dim: int | None
     up_sample: bool
     num_heads: int
     num_layers: int
@@ -36,7 +36,9 @@ class UpBlock(nn.Module):
     def __init__(self, config: UpConfig):
         super().__init__()
         self.config = config
-        logger.info("UpConfig", **asdict(self.config))
+        logger.info(
+            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+        )
 
         channel_pairs = []
         for i in range(self.config.num_layers):
@@ -109,8 +111,8 @@ class UpBlock(nn.Module):
         self.register_forward_hook(forward_hook)
 
     def forward(self, x, out_down=None, t_emb=None, context=None):
-        assert x.shape[1] == out_down.shape[1]
         if out_down is not None:
+            assert x.shape[1] == out_down.shape[1]
             x = torch.cat([x, out_down], dim=1)
         x = self.up_sample_conv(x)
 

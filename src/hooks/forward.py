@@ -11,8 +11,8 @@ def forward_hook(module, input, output):
     elif isinstance(output, tuple):
         outs = [el.shape for el in output]
     logger.debug(
-        f"In shape {module.__class__.__name__}",
+        f"{module.__class__.__name__} In",
         shape=input[0].shape,
     )
-    logger.debug(f"Out shape {module.__class__.__name__}", shape=outs)
+    logger.debug(f"{module.__class__.__name__} Out", shape=outs)
     logger.debug("---")

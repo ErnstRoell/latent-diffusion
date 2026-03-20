@@ -1,0 +1,50 @@
+dataset: 
+  module: datasets.mnist
+  root: data
+  raw: data/raw
+  batch_size: 32
+
+
+model:
+  module: ""
+  im_channels: 1
+  time_emb_dim: null
+  z_channels: 16
+  down_blocks: 
+    - in_channels: 64
+      out_channels: 128
+      t_emb_dim: null
+      down_sample: True
+      num_heads: 16
+      num_layers: 2
+      attn: False
+      norm_channels: 16
+      normtype: group
+    - in_channels: 128
+      out_channels: 256
+      down_sample: False
+      attn: True
+      t_emb_dim: null
+      num_heads: 16
+      num_layers: 2
+      norm_channels: 16
+      normtype: group
+  mid_blocks:
+    - in_channels: 256
+      out_channels: 256
+      attn: True
+      t_emb_dim: null
+      num_heads: 16
+      num_layers: 2
+      norm_channels: 16
+
+
+trainer:
+  num_epochs: 5
+  lr: 0.001
+  checkpoint_interval: 2
+  validation_interval: 2
+  flush_logs_every_n_steps: 2
+
+meta:
+  modelname: vae

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import torch
 import torch.nn as nn
 from models.down import DownBlock, DownConfig
@@ -89,6 +89,10 @@ class Unet(nn.Module):
             self.config.down_blocks[0].in_channels,  # type: ignore
             kernel_size=3,
             padding=1,
+        )
+
+        logger.info(
+            f"Config {self.__class__.__name__}", type="config", **config_to_dict(config)
         )
 
         ######################

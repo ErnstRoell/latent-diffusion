@@ -15,6 +15,7 @@ dependencies = [
   "lightning>=2.6.1",
   "matplotlib>=3.10.8",
   "modelsummary>=1.1.7",
+  "nbconvert[qtpdf,webpdf]>=7.17.0",
   "pandas>=3.0.1",
   "pyqt6>=6.10.2",
   "rdkit>=2025.9.6",

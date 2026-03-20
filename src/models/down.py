@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 
 from dataclasses import dataclass, asdict
+from hooks.forward import forward_hook
 
 import structlog
 from models.blocks.resnet import ResNetBlock, ResNetConfig
@@ -26,7 +27,7 @@ class DownConfig:
 
     in_channels: int
     out_channels: int
-    t_emb_dim: int
+    t_emb_dim: int | None
     down_sample: bool
     num_heads: int
     num_layers: int
@@ -41,7 +42,9 @@ class DownBlock(nn.Module):
 
         self.config = config
 
-        logger.info("DownConfig:", **asdict(self.config))
+        logger.info(
+            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+        )
 
         # Either attention blocks or identity.
         self.resnet_blocks = nn.ModuleList()
@@ -102,6 +105,8 @@ class DownBlock(nn.Module):
                 )
             else:
                 self.attn_blocks.append(nn.Identity())
+
+        self.register_forward_hook(forward_hook)
 
     def forward(self, x, t_emb=None):
         out = x
