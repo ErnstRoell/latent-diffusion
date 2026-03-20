@@ -17,18 +17,7 @@ class ResNetConfig:
     t_emb_dim: int | None
     down_sample: bool
     norm_channels: int
-    normtype: str
-
-
-def get_normlayer(
-    norm_channels,
-    in_channels,
-    normtype="group",
-) -> Union[nn.GroupNorm, nn.BatchNorm2d]:
-    if normtype == "group":
-        return nn.GroupNorm(norm_channels, in_channels)
-    else:
-        return nn.BatchNorm2d(in_channels)
+    bias: bool
 
 
 class ResNetBlock(nn.Module):
@@ -51,10 +40,9 @@ class ResNetBlock(nn.Module):
         )
 
         self.resnet_conv_first = nn.Sequential(
-            get_normlayer(
+            nn.GroupNorm(
                 config.norm_channels,
                 config.in_channels,
-                normtype=config.normtype,
             ),
             nn.SiLU(),
             nn.Conv2d(
@@ -63,6 +51,7 @@ class ResNetBlock(nn.Module):
                 kernel_size=3,
                 stride=1,
                 padding=1,
+                bias=config.bias,
             ),
         )
 
@@ -76,10 +65,9 @@ class ResNetBlock(nn.Module):
             )
 
         self.resnet_conv_second = nn.Sequential(
-            get_normlayer(
+            nn.GroupNorm(
                 config.norm_channels,
                 config.out_channels,
-                normtype=config.normtype,
             ),
             nn.SiLU(),
             nn.Conv2d(
@@ -88,13 +76,12 @@ class ResNetBlock(nn.Module):
                 kernel_size=3,
                 stride=1,
                 padding=1,
+                bias=config.bias,
             ),
         )
 
         self.residual_input_conv = nn.Conv2d(
-            config.in_channels,
-            config.out_channels,
-            kernel_size=1,
+            config.in_channels, config.out_channels, kernel_size=1, bias=config.bias
         )
 
         if self.config.down_sample:
@@ -104,6 +91,7 @@ class ResNetBlock(nn.Module):
                 kernel_size=3,
                 stride=2,
                 padding=1,
+                bias=config.bias,
             )
         else:
             self.down_sample_conv = nn.Identity()
@@ -144,7 +132,7 @@ if __name__ == "__main__":
         t_emb_dim=128,
         down_sample=False,
         norm_channels=32,
-        normtype="group",
+        bias=True,
     )
 
     block = ResNetBlock(config=config)

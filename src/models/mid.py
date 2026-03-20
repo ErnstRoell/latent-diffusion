@@ -18,6 +18,7 @@ class MidConfig:
     num_layers: int
     norm_channels: int
     attn: bool
+    bias: bool
 
 
 class MidBlock(nn.Module):
@@ -43,7 +44,7 @@ class MidBlock(nn.Module):
                 t_emb_dim=self.config.t_emb_dim,
                 down_sample=False,
                 norm_channels=self.config.norm_channels,
-                normtype="group",
+                bias=config.bias,
             )
         )
 
@@ -59,7 +60,7 @@ class MidBlock(nn.Module):
                         t_emb_dim=self.config.t_emb_dim,
                         down_sample=False,
                         norm_channels=self.config.norm_channels,
-                        normtype="group",
+                        bias=config.bias,
                     )
                 )
             )
@@ -75,7 +76,6 @@ class MidBlock(nn.Module):
                             t_emb_dim=self.config.t_emb_dim,
                             norm_channels=self.config.norm_channels,
                             num_heads=self.config.num_heads,
-                            normtype="group",
                         )
                     )
                 )

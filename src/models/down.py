@@ -22,7 +22,6 @@ class DownConfig:
     num_layers: int = 2
     attn: bool = True
     norm_channels: int = 32
-    normtype: str = "group"
     """
 
     in_channels: int
@@ -33,7 +32,7 @@ class DownConfig:
     num_layers: int
     attn: bool
     norm_channels: int
-    normtype: str
+    bias: bool
 
 
 class DownBlock(nn.Module):
@@ -83,7 +82,7 @@ class DownBlock(nn.Module):
                         t_emb_dim=config.t_emb_dim,
                         down_sample=down_sample_bool,
                         norm_channels=config.norm_channels,
-                        normtype="group",
+                        bias=config.bias,
                     )
                 )
             )
@@ -99,7 +98,6 @@ class DownBlock(nn.Module):
                             t_emb_dim=config.t_emb_dim,
                             norm_channels=config.norm_channels,
                             num_heads=config.num_heads,
-                            normtype="group",
                         )
                     )
                 )
@@ -133,7 +131,7 @@ if __name__ == "__main__":
         num_layers=2,
         attn=True,
         norm_channels=32,
-        normtype="group",
+        bias=True,
     )
 
     block = DownBlock(config=config)

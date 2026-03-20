@@ -15,7 +15,7 @@ model:
   module: ""
   im_channels: 1
   time_emb_dim: 128
-  bias: True
+  bias: False
   down_blocks: 
     - in_channels: 32
       out_channels: 64
@@ -25,7 +25,7 @@ model:
       num_layers: 2
       attn: False
       norm_channels: 8
-      bias: True
+      bias: False
     - in_channels: 64
       out_channels: 128
       down_sample: False
@@ -34,13 +34,13 @@ model:
       num_heads: 8
       num_layers: 2
       norm_channels: 8
-      bias: True
+      bias: False
   mid_blocks:
     - in_channels: 128
       out_channels: 128
       attn: True
       t_emb_dim: 128
-      bias: True
+      bias: False
       num_heads: 8
       num_layers: 2
       norm_channels: 8
@@ -53,5 +53,4 @@ trainer:
   flush_logs_every_n_steps: 50
 
 meta:
-  modelname: unet_bias
-
+  modelname: unet_no_bias

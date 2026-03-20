@@ -62,6 +62,7 @@ class ModelConfig:
     im_channels: int
     down_blocks: list[DownConfig]
     mid_blocks: list[MidConfig]
+    bias: bool
 
 
 class Unet(nn.Module):
@@ -89,6 +90,7 @@ class Unet(nn.Module):
             self.config.down_blocks[0].in_channels,  # type: ignore
             kernel_size=3,
             padding=1,
+            bias=config.bias,
         )
 
         logger.info(
@@ -140,6 +142,7 @@ class Unet(nn.Module):
             self.config.im_channels,
             kernel_size=3,
             padding=1,  # type: ignore
+            bias=config.bias,
         )
 
     def forward(self, x, t):
@@ -170,6 +173,7 @@ if __name__ == "__main__":
         module="",
         im_channels=1,
         time_emb_dim=128,  # Should be the same everywhere.
+        bias=True,
         down_blocks=[
             DownConfig(
                 in_channels=64,
@@ -181,6 +185,7 @@ if __name__ == "__main__":
                 attn=False,
                 norm_channels=16,
                 normtype="group",
+                bias=True,
             ),
             DownConfig(
                 in_channels=128,
@@ -192,6 +197,7 @@ if __name__ == "__main__":
                 attn=True,
                 norm_channels=16,
                 normtype="group",
+                bias=True,
             ),
         ],
         mid_blocks=[
@@ -203,6 +209,7 @@ if __name__ == "__main__":
                 num_layers=2,
                 attn=True,
                 norm_channels=16,
+                bias=True,
             ),
         ],
     )

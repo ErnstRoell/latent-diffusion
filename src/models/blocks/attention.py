@@ -1,5 +1,4 @@
 import torch.nn as nn
-import torch
 
 from dataclasses import dataclass, asdict
 
@@ -15,7 +14,6 @@ class AttentionConfig:
     t_emb_dim: int | None
     num_heads: int
     norm_channels: int
-    normtype: str
 
 
 class AttentionBlock(nn.Module):
@@ -80,7 +78,6 @@ class AttentionBlock(nn.Module):
 #         t_emb_dim=64,
 #         num_heads=16,
 #         norm_channels=32,
-#         normtype="group",
 #     )
 #
 #     block = AttentionBlock(config=config)

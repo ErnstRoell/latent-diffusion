@@ -39,6 +39,7 @@ def flip_config(up_config: dict):
 class ModelConfig:
     module: str
     im_channels: int
+    bias: bool
     z_channels: int
     down_blocks: list[DownConfig]
     mid_blocks: list[MidConfig]
@@ -186,6 +187,7 @@ if __name__ == "__main__":
         module="",
         z_channels=8,
         im_channels=1,
+        bias=True,
         down_blocks=[
             DownConfig(
                 in_channels=32,
@@ -196,7 +198,7 @@ if __name__ == "__main__":
                 num_layers=2,
                 attn=False,
                 norm_channels=16,
-                normtype="group",
+                bias=True,
             ),
             DownConfig(
                 in_channels=64,
@@ -207,7 +209,7 @@ if __name__ == "__main__":
                 num_layers=2,
                 attn=False,
                 norm_channels=16,
-                normtype="group",
+                bias=True,
             ),
         ],
         mid_blocks=[
@@ -219,6 +221,7 @@ if __name__ == "__main__":
                 num_layers=2,
                 attn=True,
                 norm_channels=16,
+                bias=True,
             ),
         ],
     )

@@ -21,6 +21,7 @@ class UpConfig:
     num_layers: int
     norm_channels: int
     attn: bool
+    bias: bool
 
 
 class UpBlock(nn.Module):
@@ -72,7 +73,7 @@ class UpBlock(nn.Module):
                         t_emb_dim=self.config.t_emb_dim,
                         down_sample=False,
                         norm_channels=self.config.norm_channels,
-                        normtype="group",
+                        bias=config.bias,
                     )
                 )
             )
@@ -88,7 +89,6 @@ class UpBlock(nn.Module):
                             t_emb_dim=self.config.t_emb_dim,
                             norm_channels=self.config.norm_channels,
                             num_heads=self.config.num_heads,
-                            normtype="group",
                         )
                     )
                 )
@@ -103,6 +103,7 @@ class UpBlock(nn.Module):
                 2,
                 1,
                 output_padding=1,
+                bias=config.bias,
             )
             if self.config.up_sample
             else nn.Identity()
