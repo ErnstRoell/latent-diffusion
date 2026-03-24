@@ -6,7 +6,7 @@ dataset:
 
 
 scheduler: 
-  module: models.schedulers
+  module: schedulers.linear
   num_timesteps: 1000
   beta_start: 0.0001
   beta_end: 0.02

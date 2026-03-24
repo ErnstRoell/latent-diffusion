@@ -11,7 +11,7 @@ from loggers import setup_loggers
 
 from loaders import load_config, load_datamodule
 
-from models.linear_scheduler import LinearNoiseScheduler
+from schedulers.linear import LinearNoiseScheduler
 from models.unet import Unet
 
 from torch.optim import Adam

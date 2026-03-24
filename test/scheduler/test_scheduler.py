@@ -1,5 +1,5 @@
 import torch
-from models.linear_scheduler import LinearNoiseScheduler, NoiseSchedulerConfig
+from schedulers.linear import LinearNoiseScheduler, NoiseSchedulerConfig
 
 # class NoiseSchedulerConfig:
 #     num_timesteps: int
