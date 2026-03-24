@@ -68,19 +68,3 @@ class AttentionBlock(nn.Module):
         out = out + out_attn
 
         return out
-
-
-# if __name__ == "__main__":
-#     import torch
-#
-#     config = AttentionConfig(
-#         in_channels=64,
-#         t_emb_dim=64,
-#         num_heads=16,
-#         norm_channels=32,
-#     )
-#
-#     block = AttentionBlock(config=config)
-#
-#     img = torch.zeros(10, 64, 28, 28)
-#     block(img)

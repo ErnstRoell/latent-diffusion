@@ -1,6 +1,6 @@
 import torch
+import pydantic
 import torch.nn as nn
-from dataclasses import dataclass, asdict
 import structlog
 
 logger = structlog.get_logger()
@@ -35,8 +35,7 @@ def flip_config(up_config: dict):
     return up_config
 
 
-@dataclass
-class ModelConfig:
+class ModelConfig(pydantic.BaseModel):
     module: str
     im_channels: int
     bias: bool

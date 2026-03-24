@@ -19,7 +19,6 @@ model:
       num_layers: 2
       attn: False
       norm_channels: 16
-      normtype: group
     - in_channels: 128
       out_channels: 256
       down_sample: False
