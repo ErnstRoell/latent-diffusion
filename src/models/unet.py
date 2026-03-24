@@ -1,11 +1,15 @@
-from dataclasses import dataclass, asdict
 import torch
 import torch.nn as nn
-from models.down import DownBlock, DownConfig
-from models.mid import MidBlock, MidConfig
-from models.up import UpBlock, UpConfig
+from models.down import DownBlock
+from models.down import DownConfig as DownCfg
+
+from models.mid import MidBlock
+from models.mid import MidConfig as MidCfg
+from models.up import UpBlock
+from models.up import UpConfig as UpCfg
 from torch import nn
 import structlog
+import pydantic
 
 logger = structlog.get_logger()
 import json
@@ -29,7 +33,7 @@ def flip_and_multiply(up_config: dict):
     up_config["in_channels"] = 2 * in_channels
     up_config["up_sample"] = up_config["down_sample"]  # type: ignore
     up_config.pop("down_sample")
-    return UpConfig(**up_config)
+    return UpCfg(**up_config)
 
 
 def get_time_embedding(time_steps, temb_dim):
@@ -54,13 +58,15 @@ def get_time_embedding(time_steps, temb_dim):
     return t_emb
 
 
-@dataclass
-class ModelConfig:
+# @dataclass
+
+
+class ModelConfig(pydantic.BaseModel):
     module: str
     time_emb_dim: int
     im_channels: int
-    down_blocks: list[DownConfig]
-    mid_blocks: list[MidConfig]
+    down_blocks: list[DownCfg]
+    mid_blocks: list[MidCfg]
     bias: bool
 
 
@@ -93,7 +99,9 @@ class Unet(nn.Module):
         )
 
         logger.info(
-            f"Config {self.__class__.__name__}", type="config", **config_to_dict(config)
+            f"Config {self.__class__.__name__}",
+            type="config",
+            **config.model_dump(),
         )
 
         ######################
@@ -106,7 +114,7 @@ class Unet(nn.Module):
         self.downs = nn.ModuleList([])
         for down_config in self.config.down_blocks:  # type: ignore
             down_config = config_to_dict(down_config)
-            self.downs.append(DownBlock(DownConfig(**down_config)))
+            self.downs.append(DownBlock(DownCfg(**down_config)))
 
         #####################
         #  Mid blocks UNet  #
@@ -114,7 +122,7 @@ class Unet(nn.Module):
 
         self.mids = nn.ModuleList([])
         for mid_config in self.config.mid_blocks:  # type: ignore
-            mid_config = MidConfig(**config_to_dict(mid_config))
+            mid_config = MidCfg(**config_to_dict(mid_config))
             self.mids.append(MidBlock(mid_config))
 
         ####################
@@ -174,7 +182,7 @@ if __name__ == "__main__":
         time_emb_dim=128,  # Should be the same everywhere.
         bias=True,
         down_blocks=[
-            DownConfig(
+            DownCfg(
                 in_channels=64,
                 out_channels=128,
                 t_emb_dim=128,
@@ -186,7 +194,7 @@ if __name__ == "__main__":
                 normtype="group",
                 bias=True,
             ),
-            DownConfig(
+            DownCfg(
                 in_channels=128,
                 out_channels=256,
                 t_emb_dim=128,
@@ -200,7 +208,7 @@ if __name__ == "__main__":
             ),
         ],
         mid_blocks=[
-            MidConfig(
+            MidCfg(
                 in_channels=256,
                 out_channels=256,
                 t_emb_dim=128,

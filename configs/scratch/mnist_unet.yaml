@@ -6,15 +6,17 @@ dataset:
 
 
 scheduler: 
+  module: null
   num_timesteps: 1000
   beta_start: 0.0001
   beta_end: 0.02
   zero_snr: False
 
 model:
-  module: ""
+  module: models.unet
   im_channels: 1
   time_emb_dim: 128
+  bias: True
   down_blocks: 
     - in_channels: 64
       out_channels: 128
@@ -25,6 +27,7 @@ model:
       attn: False
       norm_channels: 16
       normtype: group
+      bias: True
     - in_channels: 128
       out_channels: 256
       down_sample: False
@@ -34,6 +37,7 @@ model:
       num_layers: 2
       norm_channels: 16
       normtype: group
+      bias: True
   mid_blocks:
     - in_channels: 256
       out_channels: 256
@@ -42,9 +46,11 @@ model:
       num_heads: 16
       num_layers: 2
       norm_channels: 16
+      bias: True
 
 
 trainer:
+  module: null
   num_epochs: 5
   lr: 0.0005
   checkpoint_interval: 2
@@ -52,4 +58,5 @@ trainer:
   flush_logs_every_n_steps: 2
 
 meta:
+  module: null
   modelname: unet

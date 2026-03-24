@@ -6,13 +6,14 @@ dataset:
 
 
 scheduler: 
+  module: null
   num_timesteps: 1000
   beta_start: 0.0001
   beta_end: 0.02
   zero_snr: False
 
 model:
-  module: ""
+  module: "models.unet"
   im_channels: 1
   time_emb_dim: 128
   bias: True
@@ -46,6 +47,7 @@ model:
       norm_channels: 8
 
 trainer:
+  module: null
   num_epochs: 50
   lr: 0.0005
   checkpoint_interval: 5
@@ -53,5 +55,6 @@ trainer:
   flush_logs_every_n_steps: 50
 
 meta:
+  module: null
   modelname: unet_bias
 

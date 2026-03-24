@@ -8,6 +8,7 @@ good_configs = [
         out_channels=128,
         up_sample=True,
         t_emb_dim=128,
+        bias=True,
         num_heads=32,
         num_layers=2,
         attn=True,
@@ -18,6 +19,7 @@ good_configs = [
         out_channels=128,
         up_sample=True,
         t_emb_dim=128,
+        bias=True,
         num_heads=32,
         num_layers=2,
         attn=False,
@@ -28,6 +30,7 @@ good_configs = [
         out_channels=128,
         up_sample=False,
         t_emb_dim=128,
+        bias=True,
         num_heads=32,
         num_layers=2,
         attn=True,
@@ -37,6 +40,7 @@ good_configs = [
         in_channels=64,
         out_channels=128,
         up_sample=False,
+        bias=True,
         t_emb_dim=128,
         num_heads=32,
         num_layers=2,
@@ -72,6 +76,7 @@ def test_attention_shape_not_equal():
         num_layers=6,
         attn=True,
         norm_channels=2,
+        bias=True,
     )
 
     with pytest.raises(AssertionError) as exc_info:
@@ -88,6 +93,7 @@ def test_group_norm_not_equal():
         num_layers=6,
         attn=True,
         norm_channels=13,
+        bias=True,
     )
 
     with pytest.raises(AssertionError) as exc_info:

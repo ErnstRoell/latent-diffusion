@@ -1,3 +1,6 @@
+scratch_*
+
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -6,6 +9,7 @@ dist/
 wheels/
 *.egg-info
 .coverage
+
 
 # Virtual environments
 .venv

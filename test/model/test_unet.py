@@ -10,29 +10,30 @@ good_configs = [
     ModelConfig(
         module="",
         im_channels=1,
+        bias=True,
         time_emb_dim=128,  # Should be the same everywhere.
         down_blocks=[
             DownConfig(
                 in_channels=64,
                 out_channels=128,
                 t_emb_dim=128,
+                bias=True,
                 down_sample=False,
                 num_heads=16,
                 num_layers=2,
                 attn=False,
                 norm_channels=16,
-                normtype="group",
             ),
             DownConfig(
                 in_channels=128,
                 out_channels=256,
+                bias=True,
                 t_emb_dim=128,
                 down_sample=True,
                 num_heads=16,
                 num_layers=2,
                 attn=True,
                 norm_channels=16,
-                normtype="group",
             ),
         ],
         mid_blocks=[
@@ -40,6 +41,7 @@ good_configs = [
                 in_channels=256,
                 out_channels=256,
                 t_emb_dim=128,
+                bias=True,
                 num_heads=16,
                 num_layers=2,
                 attn=True,
@@ -50,6 +52,7 @@ good_configs = [
     ModelConfig(
         module="",
         im_channels=1,
+        bias=True,
         time_emb_dim=128,  # Should be the same everywhere.
         down_blocks=[
             DownConfig(
@@ -57,22 +60,22 @@ good_configs = [
                 out_channels=128,
                 t_emb_dim=128,
                 down_sample=False,
+                bias=True,
                 num_heads=16,
                 num_layers=2,
                 attn=False,
                 norm_channels=16,
-                normtype="group",
             ),
             DownConfig(
                 in_channels=128,
                 out_channels=256,
                 t_emb_dim=128,
+                bias=True,
                 down_sample=True,
                 num_heads=16,
                 num_layers=2,
                 attn=True,
                 norm_channels=16,
-                normtype="group",
             ),
         ],
         mid_blocks=[
@@ -81,6 +84,7 @@ good_configs = [
                 out_channels=256,
                 t_emb_dim=128,
                 num_heads=16,
+                bias=True,
                 num_layers=2,
                 attn=True,
                 norm_channels=16,

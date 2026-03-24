@@ -6,54 +6,57 @@ dataset:
 
 
 scheduler: 
-  module: null
+  module: models.schedulers
   num_timesteps: 1000
   beta_start: 0.0001
   beta_end: 0.02
-  zero_snr: True
+  zero_snr: False
 
 model:
-  module: "models.unet"
+  module: models.unet
   im_channels: 1
   time_emb_dim: 128
   bias: False
   down_blocks: 
-    - in_channels: 32
-      out_channels: 64
-      t_emb_dim: 128
-      down_sample: True
-      num_heads: 8
-      num_layers: 2
-      attn: False
-      norm_channels: 8
-      bias: False
     - in_channels: 64
       out_channels: 128
+      t_emb_dim: 128
+      down_sample: True
+      num_heads: 16
+      num_layers: 2
+      attn: False
+      norm_channels: 16
+      normtype: group
+      bias: False
+    - in_channels: 128
+      out_channels: 256
       down_sample: False
       attn: True
       t_emb_dim: 128
-      num_heads: 8
+      num_heads: 16
       num_layers: 2
-      norm_channels: 8
+      norm_channels: 16
+      normtype: group
       bias: False
   mid_blocks:
-    - in_channels: 128
-      out_channels: 128
+    - in_channels: 256
+      out_channels: 256
       attn: True
       t_emb_dim: 128
-      bias: False
-      num_heads: 8
+      num_heads: 16
       num_layers: 2
-      norm_channels: 8
+      norm_channels: 16
+      bias: False
+
 
 trainer:
   module: null
-  num_epochs: 50
+  num_epochs: 5
   lr: 0.0005
-  checkpoint_interval: 5
-  validation_interval: 5
-  flush_logs_every_n_steps: 50
+  checkpoint_interval: 2
+  validation_interval: 2
+  flush_logs_every_n_steps: 2
 
 meta:
   module: null
-  modelname: unet_no_bias
+  modelname: unet

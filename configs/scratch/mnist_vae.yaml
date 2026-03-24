@@ -6,7 +6,7 @@ dataset:
 
 
 model:
-  module: ""
+  module: models.vae
   im_channels: 1
   time_emb_dim: null
   z_channels: 16
@@ -40,6 +40,7 @@ model:
 
 
 trainer:
+  module: null
   num_epochs: 5
   lr: 0.001
   checkpoint_interval: 2
@@ -47,4 +48,5 @@ trainer:
   flush_logs_every_n_steps: 2
 
 meta:
+  module: null
   modelname: vae

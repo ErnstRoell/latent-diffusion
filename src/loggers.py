@@ -46,13 +46,15 @@ def extract_from_record(_, __, event_dict):
     return event_dict
 
 
-def setup_loggers(result_folder: str, name: str):
+def setup_loggers(result_folder: str, name: str, remove_logs: bool = False):
     metrics_path = pathlib.Path(f"{result_folder}/metrics_{name}.log")
     config_path = pathlib.Path(f"{result_folder}/configs_{name}.log")
-    if metrics_path.exists():
-        os.remove(metrics_path)
-    if config_path.exists():
-        os.remove(config_path)
+
+    if remove_logs:
+        if metrics_path.exists():
+            os.remove(metrics_path)
+        if config_path.exists():
+            os.remove(config_path)
 
     logging.config.dictConfig(
         {

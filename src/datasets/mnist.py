@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+import pydantic
 
 import torch
 from torchvision.datasets import MNIST
@@ -12,8 +13,8 @@ class Normalize:
         return img
 
 
-@dataclass
-class DataConfig:
+# @dataclass
+class DataConfig(pydantic.BaseModel):
     module: str
     root: str
     raw: str
