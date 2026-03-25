@@ -26,7 +26,7 @@ Plot loss versus.
 °°°"""
 #|%%--%%| <P9uZhHzFFO|Va3IYWGuCX>
 
-sns.relplot(data=df, x="epoch", y="loss", hue="model",kind="scatter",col="split");
+sns.relplot(data=df, x="epoch", y="loss", hue="model",kind="line",col="split");
 
 #|%%--%%| <Va3IYWGuCX|9nEBY26PAP>
 

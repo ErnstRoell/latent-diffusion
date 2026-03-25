@@ -110,6 +110,7 @@ def train(args, config):
             #  Optimize VAE  #
             ##################
 
+            optimizer.zero_grad()
             recon, _ = model(im)
             recon_loss = criterion(recon, im)
 
@@ -117,22 +118,25 @@ def train(args, config):
             disc_fake_pred = discriminator(recon)
             disc_fake_loss = disc_criterion(
                 disc_fake_pred,
-                torch.ones(disc_fake_pred.shape, device=disc_fake_pred.device),
+                torch.zeros_like(disc_fake_pred, device=fabric.device),
             )
 
             generator_loss = recon_loss + disc_fake_loss
             g_losses.append(generator_loss.item())
 
             fabric.backward(generator_loss)
+            optimizer.step()
+            optimizer.zero_grad()
 
             ############################
             #  Optimize Discriminator  #
             ############################
 
+            optimizer_d.zero_grad()
             disc_fake_pred = discriminator(recon.detach())
             disc_fake_loss = disc_criterion(
                 disc_fake_pred,
-                torch.ones_like(disc_fake_pred, device=fabric.device),
+                torch.zeros_like(disc_fake_pred, device=fabric.device),
             )
 
             disc_real_pred = discriminator(im)
@@ -141,14 +145,12 @@ def train(args, config):
                 torch.ones_like(disc_real_pred, device=fabric.device),
             )
             disc_loss = disc_real_loss + disc_fake_loss
-            d_losses.append(disc_loss.item())
-
             fabric.backward(disc_loss)
 
-            optimizer.step()
-            optimizer.zero_grad()
             optimizer_d.step()
             optimizer_d.zero_grad()
+
+            d_losses.append(disc_loss.item())
 
             logger.debug(
                 "Training",
@@ -185,7 +187,7 @@ def train(args, config):
                     disc_fake_pred = discriminator(recon.detach())
                     disc_fake_loss = disc_criterion(
                         disc_fake_pred,
-                        torch.ones_like(disc_fake_pred, device=fabric.device),
+                        torch.zeros_like(disc_fake_pred, device=fabric.device),
                     )
                     generator_loss = recon_loss + disc_fake_loss
                     g_losses_val.append(generator_loss.item())
