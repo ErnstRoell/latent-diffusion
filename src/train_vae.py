@@ -14,7 +14,7 @@ from loggers import setup_loggers
 from loaders import load_config, load_datamodule
 
 from models.vae import VAE
-
+from models.discriminator import Discriminator
 from torch.optim import Adam
 from tqdm import tqdm
 
@@ -71,50 +71,151 @@ def train(args, config):
 
     optimizer = Adam(model.parameters(), lr=config.trainer.lr)
     criterion = torch.nn.MSELoss()
-
     model, optimizer = fabric.setup(model, optimizer)  # type: ignore
+
+    ##########################
+    #  Discriminator setup.  #
+    ##########################
+
+    disc_criterion = torch.nn.MSELoss()
+    discriminator = Discriminator()
+    optimizer_d = Adam(
+        discriminator.parameters(),
+        lr=config.trainer.lr,
+        betas=(0.5, 0.999),
+    )
+
+    discriminator, optimizer_d = fabric.setup(discriminator, optimizer_d)  # type: ignore
+
+    ###############################################
+    ###############################################
 
     logger.info(f"Start training from epoch {epoch} ...")
     for epoch_idx in range(epoch, epoch + config.trainer.num_epochs):
         model.train()
-        losses = []
+        g_losses = []
+        d_losses = []
         for step, (im,) in enumerate(tqdm(train_loader)):
             # Accumulate gradient 8 batches at a time
-            is_accumulating = step % 8 != 0
+            # is_accumulating = step % 8 != 0
+            # is_accumulating = False
 
-            with fabric.no_backward_sync(model, enabled=is_accumulating):
+            # Hardcoded for now.
+            # is_discriminator_training = epoch_idx > 1
+            # is_discriminator_training = True
 
-                recon, _ = model(im)
+            # with fabric.no_backward_sync(model, enabled=is_accumulating):
 
-                loss = criterion(recon, im)
+            ##################
+            #  Optimize VAE  #
+            ##################
 
-                fabric.backward(loss)
-                losses.append(loss.item())
+            recon, _ = model(im)
+            recon_loss = criterion(recon, im)
 
-            if not is_accumulating:
-                optimizer.step()
-                optimizer.zero_grad()
+            # optimizer_d.zero_grad()
+            disc_fake_pred = discriminator(recon)
+            disc_fake_loss = disc_criterion(
+                disc_fake_pred,
+                torch.ones(disc_fake_pred.shape, device=disc_fake_pred.device),
+            )
 
+            generator_loss = recon_loss + disc_fake_loss
+            g_losses.append(generator_loss.item())
+
+            fabric.backward(generator_loss)
+
+            ############################
+            #  Optimize Discriminator  #
+            ############################
+
+            disc_fake_pred = discriminator(recon.detach())
+            disc_fake_loss = disc_criterion(
+                disc_fake_pred,
+                torch.ones_like(disc_fake_pred, device=fabric.device),
+            )
+
+            disc_real_pred = discriminator(im)
+            disc_real_loss = disc_criterion(
+                disc_real_pred,
+                torch.ones_like(disc_real_pred, device=fabric.device),
+            )
+            disc_loss = disc_real_loss + disc_fake_loss
+            d_losses.append(disc_loss.item())
+
+            fabric.backward(disc_loss)
+
+            optimizer.step()
+            optimizer.zero_grad()
+            optimizer_d.step()
+            optimizer_d.zero_grad()
+
+            logger.debug(
+                "Training",
+                loss=generator_loss.item(),
+                epoch=epoch_idx,
+                type="metric",
+                split="train",
+                model=config.meta.modelname,
+            )
+            logger.debug(
+                "Training",
+                loss=disc_loss.item(),
+                epoch=epoch_idx,
+                type="metric",
+                split="train",
+                model="Discriminator",
+            )
         logger.info(
-            "Training",
-            loss=np.mean(losses).item(),
-            epoch=epoch_idx,
-            type="metric",
-            split="train",
-            model=config.meta.modelname,
-        )
-        logger.info(
-            "Finished epoch:{} | Loss : {:.4f}".format(epoch_idx, np.mean(losses))
+            "Training epoch:{} | G Loss : {:.4f} | D Loss: {:.4f} ".format(
+                epoch_idx, np.mean(g_losses), np.mean(d_losses)
+            )
         )
 
         if epoch_idx % config.trainer.validation_interval == 0:
-            losses = []
             model.eval()
+            g_losses_val = []
+            d_losses_val = []
             with torch.no_grad():
                 for step, (im,) in enumerate(tqdm(test_loader)):
                     recon, _ = model(im)
 
-                    loss = criterion(recon, im)
+                    recon_loss = criterion(recon, im)
+
+                    disc_fake_pred = discriminator(recon.detach())
+                    disc_fake_loss = disc_criterion(
+                        disc_fake_pred,
+                        torch.ones_like(disc_fake_pred, device=fabric.device),
+                    )
+                    generator_loss = recon_loss + disc_fake_loss
+                    g_losses_val.append(generator_loss.item())
+
+                    logger.debug(
+                        "Validation",
+                        loss=generator_loss.item(),
+                        epoch=epoch_idx,
+                        type="metric",
+                        split="val",
+                        model=config.meta.modelname,
+                    )
+
+                    disc_real_pred = discriminator(im)
+                    disc_real_loss = disc_criterion(
+                        disc_real_pred,
+                        torch.ones_like(disc_real_pred, device=fabric.device),
+                    )
+                    disc_loss = disc_real_loss + disc_fake_loss
+                    d_losses_val.append(disc_loss.item())
+
+                    logger.debug(
+                        "Validation",
+                        loss=disc_loss.item(),
+                        epoch=epoch_idx,
+                        type="metric",
+                        split="val",
+                        model="Discriminator",
+                    )
+
                     if step == 0:
                         # Save as imgs
                         recon = (1 + torch.clamp(recon, -1.0, 1.0).detach().cpu()) / 2
@@ -131,19 +232,9 @@ def train(args, config):
                         )
                         img.close()
 
-                    losses.append(loss.item())
-
                 logger.info(
-                    "Validation",
-                    loss=np.mean(losses).item(),
-                    epoch=epoch_idx,
-                    type="metric",
-                    split="val",
-                    model=config.meta.modelname,
-                )
-                logger.info(
-                    "Validation epoch:{} | Loss : {:.4f}".format(
-                        epoch_idx, np.mean(losses)
+                    "Validation epoch:{} | G Loss : {:.4f} | D Loss : {:.4f}".format(
+                        epoch_idx, np.mean(g_losses_val), np.mean(d_losses).item()
                     ),
                 )
 
@@ -201,7 +292,11 @@ def main():
     ###################
 
     config = load_config(args.config_path)
-    setup_loggers(str(result_folder), name=config.meta.modelname)
+    setup_loggers(
+        str(result_folder),
+        name=config.meta.modelname,
+        remove_logs=True,
+    )
 
     train(args, config)
 

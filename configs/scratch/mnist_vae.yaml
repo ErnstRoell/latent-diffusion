@@ -9,38 +9,41 @@ model:
   module: models.vae
   im_channels: 1
   time_emb_dim: null
+  bias: True
   z_channels: 16
   down_blocks: 
-    - in_channels: 64
-      out_channels: 128
+    - in_channels: 8
+      out_channels: 16
       t_emb_dim: null
       down_sample: True
-      num_heads: 16
+      num_heads: 8
       num_layers: 2
       attn: False
-      norm_channels: 16
-    - in_channels: 128
-      out_channels: 256
-      down_sample: False
+      norm_channels: 8
+      bias: False
+    - in_channels: 16
+      out_channels: 32
+      down_sample: True
       attn: True
       t_emb_dim: null
-      num_heads: 16
+      num_heads: 8
       num_layers: 2
-      norm_channels: 16
-      normtype: group
+      norm_channels: 8
+      bias: True
   mid_blocks:
-    - in_channels: 256
-      out_channels: 256
+    - in_channels: 32
+      out_channels: 32
       attn: True
       t_emb_dim: null
       num_heads: 16
       num_layers: 2
+      bias: True
       norm_channels: 16
 
 
 trainer:
   module: null
-  num_epochs: 5
+  num_epochs: 20
   lr: 0.001
   checkpoint_interval: 2
   validation_interval: 2

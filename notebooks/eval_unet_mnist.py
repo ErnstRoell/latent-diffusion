@@ -21,15 +21,19 @@ df = pd.concat(df_list)
 
 
 #|%%--%%| <hgUlWfpvTB|P9uZhHzFFO>
-r"""°°°
+
+"""°°°
 Plot loss versus.
 °°°"""
+
 #|%%--%%| <P9uZhHzFFO|Va3IYWGuCX>
 
 sns.relplot(data=df, x="epoch", y="loss", hue="model",kind="line",col="split");
 
 #|%%--%%| <Va3IYWGuCX|9nEBY26PAP>
-sns.relplot(data=df, x="epoch", y="loss", hue="split",kind="line",col="model");
+
+sns.relplot(data=df, x="epoch", y="loss", hue="split",kind="line",col="model",)
+
 #|%%--%%| <9nEBY26PAP|dLOZTb8k2i>
 display(df[["split","model","loss"]].groupby(by=["model","split"]).agg("min").unstack())
 

@@ -114,7 +114,7 @@ def setup_loggers(result_folder: str, name: str, remove_logs: bool = False):
                     "formatter": "colored",
                 },
                 "metrics": {
-                    "level": "INFO",
+                    "level": "DEBUG",
                     "class": "logging.handlers.WatchedFileHandler",
                     "filename": f"{metrics_path}",
                     "formatter": "metrics",
