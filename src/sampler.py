@@ -7,8 +7,8 @@ from lightning.fabric import Fabric
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from loaders import load_config
-from models.linear_scheduler import LinearNoiseScheduler
+from loaders import load_config, load_datamodule, load_latent
+from schedulers.linear import LinearNoiseScheduler
 from models.unet import Unet
 import glob
 import structlog
@@ -21,6 +21,14 @@ structlog.configure(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+class NoTransform:
+    def __call__(self, data):
+        return data
+
+    def decode(self, data):
+        return data
+
+
 @torch.no_grad()
 def main(args):
 
@@ -30,6 +38,13 @@ def main(args):
     num_samples = args.num_samples
 
     config = load_config(config_path)
+
+    # Transforms
+    if hasattr(config, "latent"):
+        to_latent = load_latent(config.latent).to(fabric.device)
+    else:
+        # No transform:
+        to_latent = NoTransform()
 
     # Make result path
     result_folder_list = ["results"] + list(pathlib.Path(config_path).parent.parts[1:])
@@ -52,14 +67,14 @@ def main(args):
         state = {"model": model}
         fabric.load(checkpoint, state)
 
-        if compile:
-            model = torch.compile(model)
+        # if compile:
+        #     model = torch.compile(model)
 
         model.eval()
         model.to(fabric.device)
 
         for batch in range(1):
-            xt = torch.randn((64, 1, 28, 28)).to(fabric.device)
+            xt = torch.randn((64, 16, 14, 14)).to(fabric.device)
             for i in tqdm(reversed(range(config.scheduler.num_timesteps - 1))):
                 # Get prediction of noise
                 noise_pred = model(
@@ -73,6 +88,8 @@ def main(args):
                 #
                 # Save x0
                 if i == 0:
+
+                    xt = to_latent.decode(xt)
 
                     # Save as (raw) tensors
                     torch.save(

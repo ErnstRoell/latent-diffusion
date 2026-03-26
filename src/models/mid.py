@@ -2,15 +2,14 @@ import torch.nn as nn
 from hooks.forward import forward_hook
 from models.blocks.resnet import ResNetBlock, ResNetConfig
 from models.blocks.attention import AttentionBlock, AttentionConfig
-from dataclasses import dataclass, asdict
+from configs import Configuration
 
 import structlog
 
 logger = structlog.get_logger()
 
 
-@dataclass
-class MidConfig:
+class MidConfig(Configuration):
     in_channels: int
     out_channels: int
     t_emb_dim: int | None
@@ -30,7 +29,7 @@ class MidBlock(nn.Module):
 
         self.config = config
         logger.info(
-            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+            f"Config {self.__class__.__name__}", type="config", **config.model_dump()
         )
 
         # Either attention blocks or identity.

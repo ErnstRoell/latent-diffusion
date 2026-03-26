@@ -9,18 +9,24 @@ from lightning.fabric import Fabric
 from structlog import get_logger
 from loggers import setup_loggers
 
-from loaders import load_config, load_datamodule
+from loaders import load_config, load_datamodule, load_latent
 
 from schedulers.linear import LinearNoiseScheduler
 from models.unet import Unet
 
 from torch.optim import Adam
 from tqdm import tqdm
+from torch import nn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = get_logger()
 
 torch.set_float32_matmul_precision("medium")
+
+
+class NoTransform:
+    def __call__(self, data):
+        return data
 
 
 def train(args, config):
@@ -63,6 +69,14 @@ def train(args, config):
     train_loader = fabric.setup_dataloaders(train_loader)
     test_loader = fabric.setup_dataloaders(test_loader)
 
+    # Latent
+    if hasattr(config, "latent"):
+        to_latent = load_latent(config.latent)
+        to_latent.to(fabric.device)
+    else:
+        # No transform:
+        to_latent = NoTransform()
+
     # Instantiate the model
     model = Unet(config.model)
     epoch = 0
@@ -90,6 +104,9 @@ def train(args, config):
         for step, (im,) in enumerate(tqdm(train_loader)):
             # Accumulate gradient 8 batches at a time
             is_accumulating = step % 1 != 0
+
+            # Transform the images, no op if no transform is defined.
+            im = to_latent(im)
 
             with fabric.no_backward_sync(model, enabled=is_accumulating):
 
@@ -124,6 +141,10 @@ def train(args, config):
             val_losses = []
             with torch.no_grad():
                 for step, (im,) in enumerate(tqdm(test_loader)):
+
+                    # Transform the images, no op if no transform is defined.
+                    im = to_latent(im)
+
                     # Sample random noise
                     noise = scheduler.sample_noise(im)
                     t = scheduler.sample_timestep(im)
@@ -199,8 +220,17 @@ def main():
     #  Parse configs  #
     ###################
 
+    if args.resume:
+        remove_logs = False
+    else:
+        remove_logs = True
+
     config = load_config(args.config_path)
-    setup_loggers(str(result_folder), name=config.meta.modelname)
+    setup_loggers(
+        str(result_folder),
+        name=config.meta.modelname,
+        remove_logs=remove_logs,
+    )
 
     train(args, config)
 

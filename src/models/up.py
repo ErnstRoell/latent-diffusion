@@ -1,18 +1,16 @@
 import torch
 import torch.nn as nn
-from typing import Union
 from hooks.forward import forward_hook
-from dataclasses import dataclass, asdict
 from models.blocks.resnet import ResNetBlock, ResNetConfig
 from models.blocks.attention import AttentionBlock, AttentionConfig
 
 import structlog
+from configs import Configuration
 
 logger = structlog.get_logger()
 
 
-@dataclass
-class UpConfig:
+class UpConfig(Configuration):
     in_channels: int
     out_channels: int
     t_emb_dim: int | None
@@ -38,7 +36,7 @@ class UpBlock(nn.Module):
         super().__init__()
         self.config = config
         logger.info(
-            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+            f"Config {self.__class__.__name__}", type="config", **config.model_dump()
         )
 
         channel_pairs = []

@@ -1,7 +1,7 @@
 import torch
 import pytest
 import glob
-from loaders import load_config_pydantic
+from loaders import load_config
 import structlog
 
 logger = structlog.get_logger()
@@ -22,5 +22,5 @@ def test_load_configs(config_path):
         config=config_path,
     )
 
-    config = load_config_pydantic(config_path)
+    config = load_config(config_path)
     logger.info("Config", config=config)

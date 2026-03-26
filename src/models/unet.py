@@ -9,7 +9,7 @@ from models.up import UpBlock
 from models.up import UpConfig as UpCfg
 from torch import nn
 import structlog
-import pydantic
+from configs import Configuration
 
 logger = structlog.get_logger()
 import json
@@ -61,7 +61,7 @@ def get_time_embedding(time_steps, temb_dim):
 # @dataclass
 
 
-class ModelConfig(pydantic.BaseModel):
+class ModelConfig(Configuration):
     module: str
     time_emb_dim: int
     im_channels: int

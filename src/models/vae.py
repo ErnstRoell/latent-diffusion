@@ -1,14 +1,17 @@
 import torch
-import pydantic
 import torch.nn as nn
 import structlog
+from configs import Configuration
 
 logger = structlog.get_logger()
 import json
 
-from models.down import DownBlock, DownConfig
-from models.mid import MidBlock, MidConfig
-from models.up import UpBlock, UpConfig
+from models.down import DownConfig as DownCfg
+from models.mid import MidConfig as MidCfg
+from models.up import UpConfig as UpCfg
+from models.down import DownBlock
+from models.mid import MidBlock
+from models.up import UpBlock
 
 
 def config_to_dict(config):
@@ -35,13 +38,13 @@ def flip_config(up_config: dict):
     return up_config
 
 
-class ModelConfig(pydantic.BaseModel):
+class ModelConfig(Configuration):
     module: str
     im_channels: int
     bias: bool
     z_channels: int
-    down_blocks: list[DownConfig]
-    mid_blocks: list[MidConfig]
+    down_blocks: list[DownCfg]
+    mid_blocks: list[MidCfg]
 
 
 class VAE(nn.Module):
@@ -50,7 +53,9 @@ class VAE(nn.Module):
         self.config = config
 
         logger.info(
-            f"Config {self.__class__.__name__}", type="config", **config_to_dict(config)
+            f"Config {self.__class__.__name__}",
+            type="config",
+            **config.model_dump(),
         )
 
         ##################### Encoder ######################
@@ -71,8 +76,7 @@ class VAE(nn.Module):
 
         self.encoder_downs = nn.ModuleList([])
         for down_config in self.config.down_blocks:  # type: ignore
-            down_config = config_to_dict(down_config)
-            self.encoder_downs.append(DownBlock(DownConfig(**down_config)))
+            self.encoder_downs.append(DownBlock(down_config))
 
         #####################
         #  Mid blocks UNet  #
@@ -80,7 +84,6 @@ class VAE(nn.Module):
 
         self.encoder_mids = nn.ModuleList([])
         for mid_config in self.config.mid_blocks:  # type: ignore
-            mid_config = MidConfig(**config_to_dict(mid_config))
             self.encoder_mids.append(MidBlock(mid_config))
 
         ####################################
@@ -125,15 +128,14 @@ class VAE(nn.Module):
             # Flip and multiply input and output channels
             mid_config = config_to_dict(mid_config)
             mid_config = flip_config(mid_config)
-            mid_config = MidConfig(**config_to_dict(mid_config))
+            mid_config = MidCfg(**config_to_dict(mid_config))
             self.decoder_mids.append(MidBlock(mid_config))
 
         self.decoder_ups = nn.ModuleList([])
         for down_config in reversed(self.config.down_blocks):
             # Flip and multiply input and output channels
-            down_config = config_to_dict(down_config)
-            up_config = flip_config(down_config)
-            self.decoder_ups.append(UpBlock(UpConfig(**up_config)))  # type: ignore
+            up_config = flip_config(down_config.model_dump())
+            self.decoder_ups.append(UpBlock(UpCfg(**up_config)))  # type: ignore
 
         self.decoder_norm_out = nn.GroupNorm(
             self.norm_channels,
@@ -188,7 +190,7 @@ if __name__ == "__main__":
         im_channels=1,
         bias=True,
         down_blocks=[
-            DownConfig(
+            DownCfg(
                 in_channels=32,
                 out_channels=64,
                 t_emb_dim=None,
@@ -199,7 +201,7 @@ if __name__ == "__main__":
                 norm_channels=16,
                 bias=True,
             ),
-            DownConfig(
+            DownCfg(
                 in_channels=64,
                 out_channels=128,
                 t_emb_dim=None,
@@ -212,7 +214,7 @@ if __name__ == "__main__":
             ),
         ],
         mid_blocks=[
-            MidConfig(
+            MidCfg(
                 in_channels=128,
                 out_channels=128,
                 t_emb_dim=None,

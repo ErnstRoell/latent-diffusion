@@ -3,35 +3,32 @@ Helpers to load a class from a configuration file.
 Sectioned into models, datasets, loggers.
 """
 
-from dataclasses import dataclass
-
 import importlib
-import json
 from types import SimpleNamespace
-from typing import Any
-import pydantic
 
 import yaml
+from torch import nn
+
+
+class Compose(nn.Module):
+    """Custom compose class, compatible with fabric."""
+
+    def __init__(self, transforms):
+        super().__init__()
+        self.transforms = nn.ModuleList(transforms)
+
+    def __call__(self, img):
+        for t in self.transforms:
+            img = t(img)
+        return img
+
 
 #######################################################################
 ### Configuration
 #######################################################################
 
 
-#######################################################################
-### Configuration
-#######################################################################
-
-
-# @timeit_decorator
-def load_object(obj):
-    if isinstance(obj, dict):
-        return SimpleNamespace(**obj)
-    else:
-        return obj
-
-
-def load_config_pydantic(path: str):
+def load_config(path: str):
     """
     Loads the configuration yaml and parses it into an object with dot access.
     """
@@ -60,60 +57,6 @@ def load_config_pydantic(path: str):
     return SimpleNamespace(**loaded_config_dict)
 
 
-def load_config(path: str):
-    """
-    Loads the configuration yaml and parses it into an object with dot access.
-    """
-    with open(path, encoding="utf-8") as stream:
-        # Load dict
-        config_dict = yaml.safe_load(stream)
-
-        # Convert to namespace (access via config.data etc)
-        config = json.loads(json.dumps(config_dict), object_hook=load_object)
-    return config
-
-
-@dataclass
-class Config:
-    dataset: Any
-    model: Any
-    scheduler: Any
-    trainer: Any
-    meta: Any
-
-
-def save_config(config, path: str):
-    """
-    Save the configuration yaml.
-    """
-    print(f"Saving config to {path}")
-    with open(path, "w", encoding="utf-8") as stream:
-        # Load dict
-        yaml.dump(
-            json.loads(json.dumps(config, default=lambda s: vars(s))),
-            default_flow_style=False,
-            stream=stream,
-        )
-
-
-def config_to_dict(config):
-    """
-    Converts nested namespace to nested dictionary.
-    Needed for printing."""
-    return json.loads(
-        json.dumps(config, default=lambda s: vars(s)),
-    )
-
-
-def print_config(config):
-    print(
-        yaml.dump(
-            config_to_dict(config),
-            default_flow_style=False,
-        )
-    )
-
-
 #######################################################################
 ### Datasets
 #######################################################################
@@ -128,53 +71,22 @@ def load_datamodule(config):
 
 
 #######################################################################
-### Models
+### Transforms
 #######################################################################
 
 
-# def load_datamodule(config):
-#     # Validation
-#     if not hasattr(config, "module"):
-#         raise ValueError("Path to the module is missing.")
-#     module = importlib.import_module(config.module)
-#     config_class = getattr(module, "DataConfig")
-#     datamodule_class = getattr(module, "DataModule")
-#     loaded_config = config_class(**config_to_dict(config))
-#     datamodule = datamodule_class(loaded_config)
-#     return datamodule
-
-
-def load_model(config):
-    # Validation
-    if not hasattr(config, "module"):
-        raise ValueError("Path to the module is missing.")
+def load_latent(config):
     module = importlib.import_module(config.module)
-    model_class = getattr(module, "Model")
-    return model_class(config)
+    return module.ToLatent(config)
 
 
-def load_model_config(config):
+def load_transforms(config):
     # Validation
-    if not hasattr(config, "module"):
-        raise ValueError("Path to the module is missing.")
-    module = importlib.import_module(config.module)
-    model_config_class = getattr(module, "ModelConfig")
-    return model_config_class
 
+    tr_list = []
+    for tr_config in config:
+        module = importlib.import_module(tr_config["module"])
+        cfg = module.TransformConfig(**tr_config)
+        tr_list.append(module.Transform(cfg))
 
-#######################################################################
-### Loggers
-#######################################################################
-
-
-def load_logger(config, log_path: str):
-    # Validation
-    module = importlib.import_module("loggers")
-    return module.get_logger(config, log_path)
-
-
-def load_logger_config(_):
-    # Validation
-    module = importlib.import_module("loggers")
-    logger_config_class = getattr(module, "LogConfig")
-    return logger_config_class
+    return Compose(tr_list)

@@ -13,10 +13,18 @@ config = DataConfig(
     module="datasets.mnist",
     batch_size=64,
 )
-(img, y), _ = create_dataset(config, dev=True)
+(img_train, y_train), (img_test, y_test) = create_dataset(config, dev=True)
 
 
-# |%%--%%| <NzAIAeSNEF|t74oiTfdST>
+# |%%--%%| <NzAIAeSNEF|WaezFIpmbp>
+
+img_train[0]
+img_test[0]
+
+torch.norm(img_train[0] - img_test[0])
+
+
+# |%%--%%| <WaezFIpmbp|t74oiTfdST>
 
 
 # First image analysis.

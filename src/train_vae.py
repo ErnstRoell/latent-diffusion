@@ -180,7 +180,7 @@ def train(args, config):
             d_losses_val = []
             with torch.no_grad():
                 for step, (im,) in enumerate(tqdm(test_loader)):
-                    recon, _ = model(im)
+                    recon, latents = model(im)
 
                     recon_loss = criterion(recon, im)
 

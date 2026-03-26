@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 
-from dataclasses import dataclass, asdict
+from configs import Configuration
 from hooks.forward import forward_hook
 
 import structlog
@@ -11,8 +11,7 @@ from models.blocks.attention import AttentionBlock, AttentionConfig
 logger = structlog.get_logger()
 
 
-@dataclass
-class DownConfig:
+class DownConfig(Configuration):
     """
     in_channels: int = 64
     out_channels: int = 128
@@ -42,7 +41,7 @@ class DownBlock(nn.Module):
         self.config = config
 
         logger.info(
-            f"Config {self.__class__.__name__}", type="config", **asdict(config)
+            f"Config {self.__class__.__name__}", type="config", **config.model_dump()
         )
 
         # Either attention blocks or identity.
