@@ -1,39 +1,51 @@
 # Latent Diffusion
 
-This an implementation of stable diffusion, meant for learning while also serving as a portfolio project. 
-Latent diffusion trains a diffusion model in the latent space of a Variational Autoencoder, to enable 
-training of diffusion models on large image sizes. Variations and improvements on this concept underpin 
-many modern image generative models. 
+This an implementation of stable diffusion, meant for learning while also
+serving as a portfolio project. Latent diffusion trains a diffusion model in
+the latent space of a Variational Autoencoder, to enable training of diffusion
+models on large image sizes. Variations and improvements on this concept
+underpin many modern image generative models. 
 
 
-In its current form, this implementation focusses on small datasets with the aim to be sufficiently 
-flexible for extentions and ablations for improvements proposed in various papers. 
+In its current form, this implementation focusses on small datasets with the
+aim to be sufficiently flexible for extentions and ablations for improvements
+proposed in various papers. 
 
-While Machine Learning is a fast moving field, this repository aims to be as rigorous as possible with 
-the aim of providing self-documented code. That is to say that the modules have been written to be 
-as readable and flexible as possible. 
-All core parts of the model as well as all configurations have been unit tested. While already quite 
-extensive. Extensive logging compatible with the standard logging has also been implemented as a 
-feature and my considerations (as well as the design decisions) will be outlined later in a more 
+While Machine Learning is a fast moving field, this repository aims to be as
+rigorous as possible with the aim of providing self-documented code. That is to
+say that the modules have been written to be as readable and flexible as
+possible. 
+All core parts of the model as well as all configurations have been unit
+tested. While already quite extensive. Extensive logging compatible with the
+standard logging has also been implemented as a feature and my considerations
+(as well as the design decisions) will be outlined later in a more 
 extensive write up. 
 
-During my PhD I have developed my own system to structure my machine learing code bases in a manner 
-that is conceptually sound and reproducible across different projects, while providing sufficient 
-flexibility and _without_ too much opions. In essence it is a set of design principles applied
-in structured manner that form the bases, not a set of restricting rules.
-The reader is invited to have a look at [DECT](https://github.com/ErnstRoell/dect-reimplementation)
-for conceptually similar but easier project from a model implementation perspective. 
+During my PhD I have developed my own system to structure my machine learing
+code bases in a manner that is conceptually sound and reproducible across
+different projects, while providing sufficient flexibility and _without_ too
+much opions. In essence it is a set of design principles applied in structured
+manner that form the bases, not a set of restricting rules. The reader is
+invited to have a look at
+[DECT](https://github.com/ErnstRoell/dect-reimplementation) for conceptually
+similar but easier project from a model implementation perspective. 
 
-The structure between the projects is the same, but the tools can, may and will change. An 
-underlying philosophy is the idea of high cohesion with low coupling of the code. Each of the 
-independent modules can be excecuted independently with independent logging logic and minimal 
-dependencies. It allows for easy development of the modules independently. 
-The training and sampling scripts provide the glue that combines everything together. 
+The structure between the projects is the same, but the tools can, may and will
+change. An underlying philosophy is the idea of high cohesion with low coupling
+of the code. Each of the independent modules can be excecuted independently
+with independent logging logic and minimal dependencies. It allows for easy
+development of the modules independently. The training and sampling scripts
+provide the glue that combines everything together. 
 
 
 > [!NOTE]  
-> No coding LLM has been used in _any_ part of this repository. All work is entirely my own.
+> No coding LLM has been used in _any_ part of this repository. All work is
+> entirely my own.
 
+> [!NOTE]  
+> This repository is still under active development. More detailed
+> documentation for the architecture and design decisions will be added
+> gradually. 
 
 ## Installation and training.
 
