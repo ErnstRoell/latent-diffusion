@@ -185,4 +185,8 @@ submit a pull request. We appreciate your contributions and are happy to assist!
 
 ## Acknowledgement 
 
-If you find our work useful, please consider using the following citation:
+As an original starting point,
+![this](https://github.com/explainingai-code/StableDiffusion-PyTorch)
+repository has been used and it has been very helpful as an initial starting 
+point.
+
