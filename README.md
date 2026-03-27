@@ -86,7 +86,7 @@ exist, the latent model can be trained using the command
 uv run src/train_ddpm.py --config configs/scratch/mnist_latent_unet.yaml
 ```
 
-### Sampling the ddpm
+### Sampling the DDPM
 
 After training, samples can be generated using the sampler with the command 
 
@@ -99,6 +99,20 @@ or
 ```python
 uv run src/sampler.py --config configs/scratch/mnist_latent_unet.yaml
 ```
+
+### Running the unit tests
+
+The unit tests can be ran with the command 
+
+```
+uv run pytest
+```
+
+In case a coverage report is desired, the tests can also be ran with 
+the command `make tests` running the `Makefile` which will generate 
+a coverage report. For the `DownBlock`, `MidBlock` and `UpBlock`, the 
+coverage is relatively high. 
+
 
 ## License
 
