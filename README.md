@@ -114,13 +114,6 @@ a coverage report. For the `DownBlock`, `MidBlock` and `UpBlock`, the
 coverage is relatively high. 
 
 
-## License
-
-Our code is released under a BSD-3-Clause license. This license essentially
-permits you to freely use our code as desired, integrate it into your projects,
-and much more --- provided you acknowledge the original authors. Please refer to
-[LICENSE.md](LICENSE.md) for more information. 
-
 ## Contributing
 
 We welcome contributions and suggestions for our DECT package! Here are some
