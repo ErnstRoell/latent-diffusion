@@ -32,9 +32,7 @@ The training and sampling scripts provide the glue that combines everything toge
 
 
 > [!NOTE]  
-> I have not used any AI or LLM coding in _any_ part of this repository. All work is entirely my own.
-
-
+> No coding LLM has been used in _any_ part of this repository. All work is entirely my own.
 
 
 ## Installation and training.
@@ -43,6 +41,58 @@ For the installation we use `uv`, a modern package manager and PyTorch with Cuda
 
 ## Usage
 
+### Create the dataset
+
+First create the dataset with the command 
+
+```python
+uv run src/datasets/mnist.py
+```
+
+The `main` function contains the setup code, which can be ran independently if required during testing. 
+
+### Training the models
+
+Each configuration file under `configs/` is a self-contained configuration and can be ran with the 
+following commands. 
+
+Train the diffusion model with 
+
+```python
+uv run src/train_ddpm.py --config configs/scratch/mnist_unet.yaml
+```
+
+Optionally add the `--dev` flag to run the model on the development dataset. 
+
+Train the VAE with the command 
+
+```python
+uv run src/train_vae.py --config configs/scratch/mnist_vae.yaml
+```
+
+The above two command train a standard VAE and standard Diffusion model on the 
+MNIST dataset. To train the latent diffusion model, a VAE model has to be trained 
+first (in this case `mnist_vae.yaml`) and this configuration file needs to be 
+passed in the latent diffusion model configuration. If the required artifacts 
+exist, the latent model can be trained using the command
+
+```python
+uv run src/train_ddpm.py --config configs/scratch/mnist_latent_unet.yaml
+```
+
+### Sampling the ddpm
+
+After training, samples can be generated using the sampler with the command 
+
+```python
+uv run src/sampler.py --config configs/scratch/mnist_unet.yaml
+```
+
+or 
+
+```python
+uv run src/sampler.py --config configs/scratch/mnist_latent_unet.yaml
+```
 
 ## License
 

@@ -115,7 +115,7 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
     return train_dl, test_dl
 
 
-if __name__ == "__main__":
+def main():
     config = DataConfig(
         root="./data",
         raw="./data/raw",
@@ -124,4 +124,8 @@ if __name__ == "__main__":
     )
     create_dataset(config, dev=True)
     create_dataset(config, dev=False)
-    train_dl, test_dl = get_dataloaders(config, dev=True)
+    # train_dl, test_dl = get_dataloaders(config, dev=True)
+
+
+if __name__ == "__main__":
+    main()
