@@ -15,7 +15,7 @@ Logging compatible with the standard logging module has been implemented as a
 feature and my considerations (as well as the design decisions) will be
 outlined later in a more extensive write up. 
 
-During my PhD I have developed my own system for structuring machine learing
+During my PhD I have developed my own system for structuring machine learning
 code bases in a manner that is both conceptually sound and reproducible across
 different projects, while providing sufficient flexibility _without_ too
 many constraints.
@@ -27,7 +27,7 @@ similar but easier project from a model implementation perspective.
 
 The structure between the projects is the same, but the tools can, may and will
 change. An underlying philosophy is the idea of high cohesion with low coupling
-of the code. Each of the independent modules can be excecuted independently
+of the code. Each of the independent modules can be executed independently
 with independent logging logic and minimal dependencies. It allows for easy
 development of the modules independently. The training and sampling scripts
 provide the glue that combines everything together. 
