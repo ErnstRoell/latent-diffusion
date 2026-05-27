@@ -120,3 +120,6 @@ class LinearNoiseScheduler(torch.nn.Module):
             sigma = variance**0.5
             z = torch.randn(xt.shape, device=xt.device)
             return mean + sigma * z, x0
+
+def setup():
+    return NoiseSchedulerConfig, LinearNoiseScheduler

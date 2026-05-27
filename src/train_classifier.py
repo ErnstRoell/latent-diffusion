@@ -1,4 +1,5 @@
 import argparse
+import yaml
 import os
 import pathlib
 from torchmetrics.classification import MulticlassAccuracy
@@ -10,19 +11,18 @@ from lightning.fabric import Fabric
 from structlog import get_logger
 from loggers import setup_loggers
 
-from loaders import load_config, load_datamodule
+from loaders import load_context
 
 from torch.optim import Adam
 from tqdm import tqdm
 
-from models.vit import VisionTransformer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = get_logger()
 
 torch.set_float32_matmul_precision("medium")
 
-def train(args, config):
+def train(args, ctx):
     # Set up Fabric
     fabric = Fabric(
         accelerator="cuda",
@@ -47,19 +47,18 @@ def train(args, config):
         os.makedirs(result_folder, exist_ok=True)
 
     # Dataloaders
-    dm = load_datamodule(config.dataset)
-    train_loader, test_loader = dm.get_dataloaders(config.dataset, dev=dev)
+    train_loader, test_loader = ctx.dataset
     train_loader = fabric.setup_dataloaders(train_loader)
     test_loader = fabric.setup_dataloaders(test_loader)
 
     # Instantiate the model
-    model = VisionTransformer(config.model)
+    model = ctx.model
     epoch = 0
 
     # If resume training, load the model.
     if resume:
         state = {"model": model, "epoch": epoch}
-        fabric.load(result_folder / f"{config.meta.modelname}_9999.ckpt", state)
+        fabric.load(result_folder / f"{ctx.meta.modelname}_9999.ckpt", state)
         epoch = state["epoch"]
         model.train()
         model.to(fabric.device)
@@ -67,7 +66,7 @@ def train(args, config):
     if compile:
         model = torch.compile(model)
 
-    optimizer = Adam(model.parameters(), lr=config.trainer.lr)
+    optimizer = Adam(model.parameters(), lr=ctx.trainer.lr)
     criterion = torch.nn.CrossEntropyLoss()
     model, optimizer = fabric.setup(model, optimizer)  # type: ignore
 
@@ -75,15 +74,10 @@ def train(args, config):
     ###############################################
 
     logger.info(f"Start training from epoch {epoch} ...")
-    for epoch_idx in range(epoch, epoch + config.trainer.num_epochs):
+    for epoch_idx in range(epoch, epoch + ctx.trainer.num_epochs):
         model.train()
         losses = []
-        for step, (im,y) in enumerate(tqdm(train_loader)):
-
-            ##################
-            #  Optimize VAE  #
-            ##################
-
+        for _, (im,y) in enumerate(tqdm(train_loader)):
 
             optimizer.zero_grad()
             logits = model(im)
@@ -103,7 +97,7 @@ def train(args, config):
                 epoch=epoch_idx,
                 type="metric",
                 split="train",
-                model=config.meta.modelname,
+                model=ctx.meta.modelname,
             )
         logger.info(
             "Training epoch:{} | Loss : {:.4f}".format(
@@ -111,7 +105,7 @@ def train(args, config):
             )
         )
 
-        if epoch_idx % config.trainer.validation_interval == 0:
+        if epoch_idx % ctx.trainer.validation_interval == 0:
             acc = MulticlassAccuracy(num_classes=10).cuda()
             model.eval()
             losses_val = []
@@ -131,7 +125,7 @@ def train(args, config):
                         epoch=epoch_idx,
                         type="metric",
                         split="val",
-                        model=config.meta.modelname,
+                        model=ctx.meta.modelname,
                     )
 
                 logger.info(
@@ -141,16 +135,16 @@ def train(args, config):
                 )
 
 
-        if epoch_idx % config.trainer.checkpoint_interval == 0:
+        if epoch_idx % ctx.trainer.checkpoint_interval == 0:
             state = {"model": model, "epoch": epoch_idx + 1}
             fabric.save(
-                result_folder / f"{config.meta.modelname}_{epoch_idx:04}.ckpt", state
+                result_folder / f"{ctx.meta.modelname}_{epoch_idx:04}.ckpt", state
             )
 
     logger.info("Done Training ...")
     state = {"model": model, "epoch": epoch_idx + 1}
     logger.info(f"Epoch: {epoch_idx}")
-    fabric.save(result_folder / f"{config.meta.modelname}_9999.ckpt", state)
+    fabric.save(result_folder / f"{ctx.meta.modelname}_9999.ckpt", state)
 
 
 def main():
@@ -199,14 +193,18 @@ def main():
     else:
         remove_logs = True
 
-    config = load_config(args.config_path)
+    with open(args.config_path,"r") as f: 
+        config_dict = yaml.safe_load(f)
+
+    ctx = load_context(config_dict)
+
     setup_loggers(
         str(result_folder),
-        name=config.meta.modelname,
+        name=ctx.meta.modelname,
         remove_logs=remove_logs,
     )
 
-    train(args, config)
+    train(args, ctx)
 
 
 if __name__ == "__main__":

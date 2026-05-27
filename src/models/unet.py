@@ -7,12 +7,11 @@ from models.mid import MidBlock
 from models.mid import MidConfig as MidCfg
 from models.up import UpBlock
 from models.up import UpConfig as UpCfg
-from torch import nn
 import structlog
 from configs import Configuration
+import json
 
 logger = structlog.get_logger()
-import json
 
 
 def config_to_dict(config):
@@ -174,6 +173,8 @@ class Unet(nn.Module):
         out = self.conv_out(out)
         return out
 
+def setup():
+    return ModelConfig, Unet
 
 if __name__ == "__main__":
     config = ModelConfig(

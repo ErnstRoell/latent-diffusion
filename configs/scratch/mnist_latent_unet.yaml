@@ -61,3 +61,7 @@ trainer:
 meta:
   module: null
   modelname: unet_latent
+
+mycoolkey:
+  module: null
+  modelname: something

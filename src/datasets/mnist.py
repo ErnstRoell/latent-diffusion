@@ -126,6 +126,8 @@ def main():
     create_dataset(config, dev=False)
     # train_dl, test_dl = get_dataloaders(config, dev=True)
 
+def setup():
+    return DataConfig, get_dataloaders
 
 if __name__ == "__main__":
     main()
