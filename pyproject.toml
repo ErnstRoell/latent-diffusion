@@ -11,6 +11,7 @@ dependencies = [
   "basedpyright>=1.38.2",
   "cairosvg>=2.8.2",
   "coverage>=7.13.5",
+  "einops>=0.8.2",
   "lightning>=2.6.1",
   "matplotlib>=3.10.8",
   "modelsummary>=1.1.7",

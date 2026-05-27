@@ -94,9 +94,9 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
     test_ims = torch.load(f"{path}/test_ims.pt")
     test_ys = torch.load(f"{path}/test_ys.pt")
 
-    train_ds = torch.utils.data.TensorDataset(train_ims)
+    train_ds = torch.utils.data.TensorDataset(train_ims,train_ys)
 
-    test_ds = torch.utils.data.TensorDataset(test_ims)
+    test_ds = torch.utils.data.TensorDataset(test_ims, test_ys)
     train_dl = torch.utils.data.DataLoader(
         train_ds,
         batch_size=config.batch_size,

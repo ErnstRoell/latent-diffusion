@@ -1,0 +1,32 @@
+dataset: 
+  module: datasets.mnist
+  root: data
+  raw: data/raw
+  batch_size: 32
+
+
+model:
+  module: models.vit
+  img_size: 28
+  patch_size: 7
+  in_chans: 1
+  n_classes: 10
+  embed_dim: 768
+  depth: 3
+  n_heads: 1
+  mlp_ratio: 4.
+  qkv_bias: True
+  p: 0.
+  attn_p: 0.
+
+trainer:
+  module: null
+  num_epochs: 10
+  lr: 0.00001
+  checkpoint_interval: 2
+  validation_interval: 2
+  flush_logs_every_n_steps: 2
+
+meta:
+  module: null
+  modelname: vit
